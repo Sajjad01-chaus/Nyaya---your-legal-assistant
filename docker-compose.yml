@@ -1,0 +1,146 @@
+# Nyaya - full stack. `docker compose up` from a clean clone brings up everything.
+# Bootstrap (ingest the act + extract the forms) is a separate one-shot:
+#   docker compose run --rm bootstrap
+name: nyaya
+
+x-postgres-env: &postgres-env
+  POSTGRES_USER: ${POSTGRES_USER:-nyaya}
+  POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-nyaya}
+  POSTGRES_DB: ${POSTGRES_DB:-nyaya}
+
+services:
+  postgres:
+    # pgvector ships as an extension on the stock postgres image; this variant
+    # has it precompiled so no build step is needed.
+    image: pgvector/pgvector:pg16
+    environment: *postgres-env
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-nyaya} -d ${POSTGRES_DB:-nyaya}"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+    restart: unless-stopped
+    networks: [nyaya]
+    ports:
+      - "${POSTGRES_PORT_HOST:-5432}:5432"
+
+  redis:
+    image: redis:7.4-alpine
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - redisdata:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+    restart: unless-stopped
+    networks: [nyaya]
+
+  api:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+      target: runtime
+    env_file: [.env]
+    environment:
+      POSTGRES_HOST: postgres
+      REDIS_HOST: redis
+    volumes:
+      - ./data:/data
+      - modelcache:/home/nyaya/.cache
+    ports:
+      - "${NYAYA_API_PORT:-8000}:8000"
+    depends_on:
+      postgres: {condition: service_healthy}
+      redis: {condition: service_healthy}
+    restart: unless-stopped
+    networks: [nyaya]
+
+  worker:
+    # Same image, different entrypoint - one build, two roles.
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+      target: runtime
+    command: ["arq", "app.workers.tasks.WorkerSettings"]
+    env_file: [.env]
+    environment:
+      POSTGRES_HOST: postgres
+      REDIS_HOST: redis
+    volumes:
+      - ./data:/data
+      - modelcache:/home/nyaya/.cache
+    depends_on:
+      postgres: {condition: service_healthy}
+      redis: {condition: service_healthy}
+    restart: unless-stopped
+    networks: [nyaya]
+
+  bootstrap:
+    # One-shot: run migrations, ingest the act, extract the forms. Idempotent.
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+      target: runtime
+    command: ["/bin/bash", "/app/scripts/bootstrap.sh"]
+    env_file: [.env]
+    environment:
+      POSTGRES_HOST: postgres
+      REDIS_HOST: redis
+    volumes:
+      - ./data:/data
+      - ./scripts:/app/scripts:ro
+      - modelcache:/home/nyaya/.cache
+    depends_on:
+      postgres: {condition: service_healthy}
+    profiles: [bootstrap]
+    networks: [nyaya]
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL:-http://localhost:8000}
+    ports:
+      - "3000:3000"
+    depends_on: [api]
+    restart: unless-stopped
+    networks: [nyaya]
+
+  # ---- optional: `docker compose --profile monitoring up` ----
+  prometheus:
+    image: prom/prometheus:v3.0.1
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - promdata:/prometheus
+    ports: ["9090:9090"]
+    profiles: [monitoring]
+    networks: [nyaya]
+
+  grafana:
+    image: grafana/grafana:11.4.0
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_PASSWORD:-admin}
+      GF_AUTH_ANONYMOUS_ENABLED: "true"
+    volumes:
+      - ./monitoring/grafana:/etc/grafana/provisioning:ro
+      - grafanadata:/var/lib/grafana
+    ports: ["3001:3000"]
+    depends_on: [prometheus]
+    profiles: [monitoring]
+    networks: [nyaya]
+
+volumes:
+  pgdata:
+  redisdata:
+  modelcache:
+  promdata:
+  grafanadata:
+
+networks:
+  nyaya:
+    driver: bridge

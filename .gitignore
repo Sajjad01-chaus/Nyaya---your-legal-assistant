@@ -1,0 +1,50 @@
+# ---- secrets: never commit ----
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+secrets/
+
+# ---- source corpus + generated artefacts (fetched/built by scripts) ----
+data/raw/*
+!data/raw/.gitkeep
+data/forms/*
+!data/forms/.gitkeep
+data/processed/*
+!data/processed/.gitkeep
+eval/results/*
+!eval/results/.gitkeep
+
+# ---- model weights / caches ----
+.cache/
+models/
+.fastembed_cache/
+*.onnx
+
+# ---- python ----
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+coverage.xml
+htmlcov/
+
+# ---- node / next ----
+node_modules/
+.next/
+out/
+.vercel/
+*.tsbuildinfo
+
+# ---- os / editor ----
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
