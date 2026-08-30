@@ -41,6 +41,9 @@ pytesseract==0.3.13
 opencv-python-headless==4.10.0.84
 Pillow==11.0.0
 
+# ---- vector store client ----
+qdrant-client==1.12.2
+
 # ---- embeddings + rerank (open weights, local inference) ----
 fastembed==0.5.1
 

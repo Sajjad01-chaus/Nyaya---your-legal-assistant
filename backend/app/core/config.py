@@ -35,8 +35,14 @@ class Settings(BaseSettings):
     redis_url_override: str | None = Field(None, alias="REDIS_URL")
 
     # ---- vector store ----
-    vector_store: Literal["pgvector", "qdrant"] = Field("pgvector", alias="NYAYA_VECTOR_STORE")
+    vector_store: Literal["qdrant", "pgvector"] = Field("qdrant", alias="NYAYA_VECTOR_STORE")
     qdrant_url: str = Field("http://qdrant:6333", alias="QDRANT_URL")
+    qdrant_collection_statute: str = Field(
+        "nyaya_statute", alias="QDRANT_COLLECTION_STATUTE"
+    )
+    qdrant_collection_docs: str = Field(
+        "nyaya_documents", alias="QDRANT_COLLECTION_DOCS"
+    )
 
     # ---- embeddings / rerank ----
     embed_model: str = Field("BAAI/bge-base-en-v1.5", alias="NYAYA_EMBED_MODEL")
