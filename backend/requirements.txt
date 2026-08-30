@@ -45,7 +45,7 @@ Pillow==11.0.0
 qdrant-client==1.12.2
 
 # ---- embeddings + rerank (open weights, local inference) ----
-fastembed==0.5.1
+fastembed==0.8.0
 
 # ---- LLM providers (HTTP only; swapped by env var) ----
 httpx==0.28.1

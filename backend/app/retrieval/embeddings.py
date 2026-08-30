@@ -34,8 +34,8 @@ logger = logging.getLogger(__name__)
 
 @dataclass(frozen=True, slots=True)
 class EmbedderConfig:
-    model: str = "BAAI/bge-base-en-v1.5"
-    dim: int = 768
+    model: str = "BAAI/bge-small-en-v1.5"
+    dim: int = 384
     query_prefix: str = ""
     passage_prefix: str = ""
     batch_size: int = 32
