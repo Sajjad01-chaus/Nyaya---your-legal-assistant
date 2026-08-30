@@ -1,0 +1,8 @@
+# Normalise line endings so diffs stay clean across Windows/Linux and so the
+# forms pipeline's "byte-identical on re-run" claim holds on every platform.
+* text=auto eol=lf
+
+*.png binary
+*.jpg binary
+*.pdf binary
+*.onnx binary
