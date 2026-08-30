@@ -1,0 +1,62 @@
+[project]
+name = "nyaya-backend"
+version = "0.1.0"
+description = "Legal retrieval over the Bharatiya Nagarik Suraksha Sanhita, 2023"
+requires-python = ">=3.12"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
+asyncio_mode = "auto"
+addopts = "-q --strict-markers"
+markers = [
+    "slow: needs the full 249-page corpus; skipped when data/raw is empty",
+    "integration: needs a live service (Qdrant, Postgres, Redis)",
+]
+filterwarnings = ["error::DeprecationWarning:app.*"]
+
+[tool.coverage.run]
+source = ["app"]
+omit = ["*/__init__.py", "*/workers/*"]
+
+[tool.coverage.report]
+# The PR gate. Raise it as coverage grows; never quietly lower it.
+fail_under = 70
+show_missing = true
+skip_covered = true
+
+[tool.ruff]
+line-length = 95
+target-version = "py312"
+
+[tool.ruff.lint]
+select = [
+    "E", "W",    # pycodestyle
+    "F",         # pyflakes
+    "I",         # isort
+    "B",         # bugbear
+    "UP",        # pyupgrade
+    "SIM",       # simplify
+    "C4",        # comprehensions
+    "RUF",       # ruff-specific
+]
+ignore = [
+    "E501",   # line length is handled by the formatter
+    "B008",   # FastAPI's Depends() in defaults is the documented idiom
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = ["SLF001"]          # tests may reach into private helpers
+
+[tool.mypy]
+python_version = "3.12"
+plugins = ["pydantic.mypy"]
+warn_unused_ignores = true
+warn_redundant_casts = true
+no_implicit_optional = true
+disallow_untyped_defs = false   # tightened module by module, not big-bang
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = ["app.ingestion.*", "app.forms.*"]
+disallow_untyped_defs = true    # the parsing core is fully typed

@@ -19,7 +19,9 @@ class TestSmartTitle:
             ("BOND TO KEEP THE PEACE", "Bond to Keep the Peace"),
             ("WARRANT OF ARREST", "Warrant of Arrest"),
             # str.title() would give "Bail-bond"; hyphen compounds capitalise.
-            ("BOND AND BAIL-BOND AFTER ARREST", "Bond and Bail-Bond After Arrest"),
+            # "after" stays lower for the same reason "before" does in the
+            # brief's own example filename.
+            ("BOND AND BAIL-BOND AFTER ARREST", "Bond and Bail-Bond after Arrest"),
         ],
     )
     def test_minor_words_stay_lower(self, raw: str, expected: str) -> None:

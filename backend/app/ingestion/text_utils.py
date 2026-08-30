@@ -102,7 +102,11 @@ def is_garbage_text(text: str, *, min_chars: int = 60) -> bool:
     font with no usable ToUnicode map; it extracts as ``vlk/kkj.k``, passes
     every "is there text?" check, and embeds as noise.
     """
-    stripped = text.strip()
+    # Statutory forms are full of dotted fill-in rules
+    # ("......................"), and leader dots are layout furniture rather
+    # than content. Left in, they sink the punctuation ratio below and every
+    # form page is misread as a broken text layer.
+    stripped = re.sub(r"[.…_\-]{3,}", " ", text).strip()
     if len(stripped) < min_chars:
         return True
     letters = sum(ch.isalpha() for ch in stripped)
