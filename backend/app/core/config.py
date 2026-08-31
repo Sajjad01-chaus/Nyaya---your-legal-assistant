@@ -3,15 +3,34 @@
 from __future__ import annotations
 
 from functools import lru_cache
+from pathlib import Path
 from typing import Literal
 
 from pydantic import Field, computed_field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
+def _find_env_file() -> tuple[str, ...]:
+    """Locate .env by walking up from this file, not from the process CWD.
+
+    A bare ``env_file=".env"`` resolves against the working directory, so
+    running uvicorn from backend/ silently loads no configuration at all and
+    every setting falls back to its default -- which surfaces as a confusing
+    authentication failure rather than as a missing-config error. Under
+    docker-compose the values arrive as real environment variables and this
+    simply finds nothing, which is correct.
+    """
+    here = Path(__file__).resolve()
+    candidates = [parent / ".env" for parent in here.parents[:5]]
+    return tuple(str(path) for path in candidates if path.is_file())
+
+
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(
-        env_file=".env", env_file_encoding="utf-8", extra="ignore", case_sensitive=False
+        env_file=_find_env_file() or ".env",
+        env_file_encoding="utf-8",
+        extra="ignore",
+        case_sensitive=False,
     )
 
     # ---- app ----
@@ -64,7 +83,7 @@ class Settings(BaseSettings):
     llm_provider: Literal["groq", "ollama", "openrouter", "gemini"] = Field(
         "groq", alias="NYAYA_LLM_PROVIDER"
     )
-    llm_model: str = Field("llama-3.3-70b-versatile", alias="NYAYA_LLM_MODEL")
+    llm_model: str = Field("openai/gpt-oss-120b", alias="NYAYA_LLM_MODEL")
     llm_api_key: str = Field("", alias="NYAYA_LLM_API_KEY")
     llm_base_url: str = Field("", alias="NYAYA_LLM_BASE_URL")
     llm_timeout_s: int = Field(60, alias="NYAYA_LLM_TIMEOUT_S")
@@ -79,6 +98,7 @@ class Settings(BaseSettings):
         "application/pdf,image/png,image/jpeg,text/plain", alias="NYAYA_ALLOWED_MIME"
     )
     upload_dir: str = Field("/data/uploads", alias="NYAYA_UPLOAD_DIR")
+    forms_dir: str = Field("/data/forms", alias="NYAYA_FORMS_DIR")
 
     # ---- rate limits ----
     rate_limit_chat: str = Field("30/minute", alias="NYAYA_RATE_LIMIT_CHAT")
@@ -92,8 +112,8 @@ class Settings(BaseSettings):
     ocr_lang: str = Field("eng", alias="NYAYA_OCR_LANG")
 
     # ---- cost accounting ----
-    cost_per_1m_input_usd: float = Field(0.59, alias="NYAYA_COST_PER_1M_INPUT_USD")
-    cost_per_1m_output_usd: float = Field(0.79, alias="NYAYA_COST_PER_1M_OUTPUT_USD")
+    cost_per_1m_input_usd: float = Field(0.15, alias="NYAYA_COST_PER_1M_INPUT_USD")
+    cost_per_1m_output_usd: float = Field(0.75, alias="NYAYA_COST_PER_1M_OUTPUT_USD")
 
     # ---------------------------------------------------------------- derived
     @computed_field  # type: ignore[prop-decorator]

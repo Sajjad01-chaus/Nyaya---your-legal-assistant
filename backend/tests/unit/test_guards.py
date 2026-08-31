@@ -39,6 +39,17 @@ class TestCitationParsing:
         (cite,) = parse_citations("Classified in [BNSS Sch.I].")
         assert cite.schedule == "Sch.I"
 
+    def test_parses_arbitrarily_nested_subclauses(self) -> None:
+        """Regression: a single-level pattern made these invisible to the guard.
+
+        A model asked to be precise writes s.35(1)(b)(ii). Unmatched citations
+        are neither validated nor stripped, so the hole sat exactly where the
+        answer was most specific.
+        """
+        (cite,) = parse_citations("The condition is [BNSS s.35(1)(b)(ii)].")
+        assert (cite.act, cite.section, cite.parts) == ("BNSS", "35", ("1", "b", "ii"))
+        assert cite.render() == "[BNSS s.35(1)(b)(ii)]"
+
 
 class TestInventedCitations:
     def test_a_real_citation_passes(self) -> None:
@@ -75,6 +86,22 @@ class TestInventedCitations:
     def test_uncited_answer_allowed_when_not_required(self) -> None:
         report = verify_answer("Hello.", CONTEXT, require_citation=False)
         assert report.verdict is Verdict.OK
+
+    def test_deep_subclause_of_a_real_section_is_valid(self) -> None:
+        """s.35 is in context as a whole; citing inside it is more precise, not wrong."""
+        report = verify_answer(
+            "Arrest requires the officer to be satisfied of necessity "
+            "[BNSS s.35(1)(b)(ii)].",
+            CONTEXT,
+        )
+        assert report.verdict is Verdict.OK
+        assert [c.render() for c in report.valid] == ["[BNSS s.35(1)(b)(ii)]"]
+
+    def test_deep_subclause_of_an_invented_section_is_stripped(self) -> None:
+        report = verify_answer("See [BNSS s.999(1)(a)] and [BNSS s.35].", CONTEXT)
+        assert report.verdict is Verdict.STRIPPED
+        assert "[BNSS s.999(1)(a)]" not in report.answer
+        assert "[BNSS s.35]" in report.answer
 
 
 class TestQuoteFidelity:

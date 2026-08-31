@@ -18,7 +18,7 @@ from app.db.session import get_session
 
 router = APIRouter()
 
-FORMS_DIR = Path("/data/forms")
+FORMS_DIR = Path(settings.forms_dir)
 
 
 class FormOut(BaseModel):

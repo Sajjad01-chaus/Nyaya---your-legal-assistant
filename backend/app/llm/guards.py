@@ -24,13 +24,20 @@ import re
 from dataclasses import dataclass, field
 from enum import Enum
 
-# [BNSS s.35], [BNSS s.35(3)], [BNS s.103(1)], [BNSS Sch.I]
+# [BNSS s.35], [BNSS s.35(3)], [BNSS s.35(1)(b)(ii)], [BNSS Sch.I]
+#
+# The nesting must be open-ended. A model asked to be precise about a statute
+# will happily write s.35(1)(b)(ii), and an earlier single-level pattern simply
+# did not match those -- so they were neither validated nor stripped, and passed
+# through the guard unchecked. Anything that looks like a citation has to be
+# recognised, or the guard has a hole exactly where the model is most specific.
 CITATION = re.compile(
     r"\[\s*(?P<act>[A-Z][A-Za-z]{1,6})\s+"
-    r"(?:s\.\s*(?P<section>\d{1,3})(?:\s*\(\s*(?P<subsection>[0-9a-z]{1,3})\s*\))?"
-    r"|(?P<schedule>Sch\.[IVX]+))"
+    r"(?:s\.\s*(?P<section>\d{1,3})(?P<subs>(?:\s*\(\s*[0-9a-z]{1,4}\s*\))*)"
+    r"|(?P<schedule>Sch\.[IVXLC]+))"
     r"\s*\]"
 )
+_SUBPART = re.compile(r"\(\s*([0-9a-z]{1,4})\s*\)")
 QUOTED = re.compile(r"[\"“]([^\"”]{25,400})[\"”]")
 
 _WS = re.compile(r"\s+")
@@ -47,18 +54,29 @@ class Verdict(str, Enum):
 class Citation:
     act: str
     section: str | None
-    subsection: str | None = None
+    parts: tuple[str, ...] = ()      # ("1", "b", "ii") for s.35(1)(b)(ii)
     schedule: str | None = None
 
     @property
+    def subsection(self) -> str | None:
+        return self.parts[0] if self.parts else None
+
+    @property
     def key(self) -> tuple[str, str]:
+        """Validation is at Act + section level.
+
+        Sub-clause depth is not checked against the context: a chunk may be the
+        whole of s.35 while the answer cites s.35(1)(b)(ii) within it, and
+        rejecting that would punish the model for being more precise than the
+        chunk boundary. Act and section are what must be real.
+        """
         return (self.act.upper(), self.schedule or (self.section or ""))
 
     def render(self) -> str:
         if self.schedule:
             return f"[{self.act} {self.schedule}]"
-        base = f"[{self.act} s.{self.section}"
-        return f"{base}({self.subsection})]" if self.subsection else f"{base}]"
+        tail = "".join(f"({p})" for p in self.parts)
+        return f"[{self.act} s.{self.section}{tail}]"
 
 
 @dataclass(slots=True)
@@ -78,11 +96,12 @@ class GuardReport:
 def parse_citations(text: str) -> list[Citation]:
     out: list[Citation] = []
     for m in CITATION.finditer(text):
+        subs = m.group("subs") or ""
         out.append(
             Citation(
                 act=m.group("act"),
                 section=m.group("section"),
-                subsection=m.group("subsection"),
+                parts=tuple(_SUBPART.findall(subs)),
                 schedule=m.group("schedule"),
             )
         )
