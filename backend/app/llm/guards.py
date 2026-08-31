@@ -204,6 +204,20 @@ REFUSAL_TEXT = (
     "the statutory forms."
 )
 
+# A different failure needs a different message. "I don't know" would be a lie
+# here: retrieval found the right sections and the draft answer was largely
+# sound -- it just presented a paraphrase inside quotation marks. Saying so
+# tells the user something true and points them at the sources, which they can
+# read for themselves in the panel.
+QUOTE_FAILURE_TEXT = (
+    "I found the relevant sections, but the draft answer put wording in "
+    "quotation marks that does not match the statute as written, so I have "
+    "withheld it rather than show you a misquotation.\n\n"
+    "The sections I retrieved are listed below - open the sources panel to "
+    "read the exact statutory text. Asking again, or asking for a summary "
+    "rather than a quotation, usually works."
+)
+
 
 def refusal(reason: str = "") -> GuardReport:
     return GuardReport(

@@ -268,7 +268,7 @@ class RetrievalService:
         documents = await self._semantic(plan, question, session_id, statute=False)
         return RetrievalResult(
             chunks=statute.chunks,
-            document_chunks=documents.chunks,
+            document_chunks=documents.document_chunks,
             confidence=max(
                 statute.confidence, documents.confidence, key=_confidence_rank
             ),
@@ -337,16 +337,39 @@ class RetrievalService:
         # Cross-encoder logits are unbounded; a sigmoid puts every query on the
         # same 0-1 scale so one threshold pair means the same thing everywhere.
         score = _sigmoid(ranked[0][1]) if ranked else 0.0
+        # Statutory passages and passages from the user's own document must not
+        # share a field. The prompt labels them differently -- one is authority,
+        # the other is evidence about the user's situation -- and the citation
+        # guard treats them differently too. Putting document text into the
+        # statute slot would present an FIR as though it were law.
         return RetrievalResult(
-            chunks=top_chunks,
-            confidence=self._grade(score),
+            chunks=top_chunks if statute else [],
+            document_chunks=[] if statute else top_chunks,
+            confidence=self._grade(score, statute=statute),
             score=round(score, 4),
             route_taken="semantic" if statute else "session_doc",
             reranked=True,
             timings_ms=timings,
         )
 
-    def _grade(self, score: float) -> Confidence:
+    def _grade(self, score: float, *, statute: bool = True) -> Confidence:
+        """Grade retrieval. The two corpora do not share a refusal contract.
+
+        Refusing exists to stop the system asserting law it has no basis for.
+        It has no business stopping the system reading a user's own upload back
+        to them. The document route is only chosen when the question is
+        explicitly deictic -- "this notice", "my FIR" -- so the user has already
+        told us which document they mean; retrieving any chunk of it is the
+        evidence, and a cross-encoder score measures topical similarity rather
+        than entitlement to answer.
+
+        Gating documents on the statutory threshold refused questions the
+        system could obviously answer: on the end-to-end run a one-chunk notice
+        scored below the floor and "What does this notice require me to do?"
+        was declined against the very document the user had just uploaded.
+        """
+        if not statute:
+            return Confidence.HIGH if score > 0.0 else Confidence.LOW
         if score >= self.confidence_high:
             return Confidence.HIGH
         if score >= self.confidence_low:

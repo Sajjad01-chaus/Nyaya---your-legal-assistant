@@ -38,7 +38,12 @@ from app.core.metrics import (
 )
 from app.db.models import Conversation, Message
 from app.db.session import get_session, session_scope
-from app.llm.guards import REFUSAL_TEXT, Verdict, verify_answer
+from app.llm.guards import (
+    QUOTE_FAILURE_TEXT,
+    REFUSAL_TEXT,
+    Verdict,
+    verify_answer,
+)
 from app.llm.prompts import build_prompt
 from app.retrieval.service import Confidence, to_prompt_dicts
 
@@ -224,12 +229,24 @@ async def chat(
         generation_latency.observe(time.perf_counter() - started)
 
         # ---------------------------------------------------------- validate
-        report = verify_answer(answer, statute + documents)
+        # A statutory claim must be cited. Reading the user's own upload back to
+        # them is not a statutory claim, so a document-only answer is not forced
+        # to produce a section reference it has no business inventing.
+        report = verify_answer(
+            answer, statute + documents, require_citation=bool(statute)
+        )
         if report.invented:
             citations_stripped.inc(len(report.invented))
         if report.verdict is Verdict.REFUSED:
-            refusals.labels(reason="failed_validation").inc()
-            report.answer = REFUSAL_TEXT
+            # Distinguish "nothing to say" from "said it wrongly": a
+            # misquotation is a different failure from missing evidence, and
+            # telling the user which one happened is the honest thing.
+            if report.unsupported_quotes:
+                refusals.labels(reason="unsupported_quote").inc()
+                report.answer = QUOTE_FAILURE_TEXT
+            else:
+                refusals.labels(reason="failed_validation").inc()
+                report.answer = REFUSAL_TEXT
 
         cost = 0.0
         if usage:
