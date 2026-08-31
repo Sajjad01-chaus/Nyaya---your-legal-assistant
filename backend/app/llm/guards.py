@@ -43,6 +43,21 @@ QUOTED = re.compile(r"[\"“]([^\"”]{25,400})[\"”]")
 _WS = re.compile(r"\s+")
 _QUOTE_SIMILARITY = 0.90
 
+# Models emit typographic spaces inside references -- "Section 35" with a
+# narrow no-break space is common. They look identical on screen and are not a
+# plain space, so anything matching on " " silently misses them.
+_ODD_SPACES = dict.fromkeys(map(ord, "    ⁠"), " ")
+
+# A prose reference to a section: "Section 35", "s. 35", "section 35(1)(b)",
+# optionally naming the Act. Deliberately does NOT match inside an existing
+# bracketed citation -- those are handled by CITATION above.
+BARE_REFERENCE = re.compile(
+    r"(?<!\[)\b(?P<word>[Ss]ections?|[Ss]\.)\s*"
+    r"(?P<section>\d{1,3})"
+    r"(?P<subs>(?:\s*\(\s*[0-9a-z]{1,4}\s*\))*)"
+    r"(?:\s+of\s+the\s+(?P<act>BNSS|BNS|BSA))?"
+)
+
 
 class Verdict(str, Enum):
     OK = "ok"
@@ -93,9 +108,61 @@ class GuardReport:
         return self.verdict is not Verdict.REFUSED
 
 
+def normalise_spaces(text: str) -> str:
+    """Fold typographic spaces to plain ones before any pattern runs.
+
+    Models emit "Section\u202f35" -- a narrow no-break space -- which renders
+    identically to a normal space and defeats every pattern matching on " ".
+    """
+    return text.translate(_ODD_SPACES)
+
+
+def upgrade_bare_citations(
+    answer: str, retrieved: list[dict], *, default_act: str = "BNSS"
+) -> tuple[str, int]:
+    """Rewrite supported prose references into the inline citation format.
+
+    The brief requires every legal statement to carry an inline citation. A
+    model told to do that mostly complies, but not always: measured on the
+    golden set, five of six citation failures were answers that referred to
+    "Section 35" in prose while retrieval had returned exactly that section.
+    The claim was grounded; only the notation was wrong.
+
+    Tightening the prompt is the obvious response and the weaker one, because
+    it cannot guarantee anything. Upgrading here can: a reference is rewritten
+    only when its (act, section) pair is present in the retrieved context, so
+    this can never manufacture a citation for something we did not retrieve.
+    Unsupported references are left as prose, where the citation guard's
+    require-a-citation rule still catches them.
+
+    Returns the rewritten answer and the number of upgrades made.
+    """
+    allowed = {
+        (str(c.get("act_short", "")).upper(), str(c.get("section_number", "")))
+        for c in retrieved
+        if c.get("act_short") and c.get("section_number")
+    }
+    if not allowed:
+        return answer, 0
+
+    upgraded = 0
+
+    def replace(match: re.Match[str]) -> str:
+        nonlocal upgraded
+        act = (match.group("act") or default_act).upper()
+        section = match.group("section")
+        if (act, section) not in allowed:
+            return match.group(0)          # not retrieved: leave it as prose
+        subs = re.sub(r"\s+", "", match.group("subs") or "")
+        upgraded += 1
+        return f"[{act} s.{section}{subs}]"
+
+    return BARE_REFERENCE.sub(replace, answer), upgraded
+
+
 def parse_citations(text: str) -> list[Citation]:
     out: list[Citation] = []
-    for m in CITATION.finditer(text):
+    for m in CITATION.finditer(normalise_spaces(text)):
         subs = m.group("subs") or ""
         out.append(
             Citation(
@@ -143,6 +210,7 @@ def verify_answer(
     ``retrieved`` carries the chunks handed to the model; each needs at least
     ``act_short``, ``section_number`` and ``text``.
     """
+    answer = normalise_spaces(answer)
     allowed: set[tuple[str, str]] = set()
     for chunk in retrieved:
         act = str(chunk.get("act_short", "")).upper()

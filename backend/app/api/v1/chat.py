@@ -26,6 +26,7 @@ from sse_starlette.sse import EventSourceResponse
 
 from app.api.deps import current_session, get_llm, get_retrieval_service
 from app.core.config import settings
+from app.main import limiter
 from app.core.logging import get_logger
 from app.core.metrics import (
     chat_requests,
@@ -42,6 +43,7 @@ from app.llm.guards import (
     QUOTE_FAILURE_TEXT,
     REFUSAL_TEXT,
     Verdict,
+    upgrade_bare_citations,
     verify_answer,
 )
 from app.llm.prompts import build_prompt
@@ -96,6 +98,7 @@ async def _get_or_create_conversation(
 
 
 @router.post("/chat")
+@limiter.limit(settings.rate_limit_chat)
 async def chat(
     payload: ChatRequest,
     session_id: str = Depends(current_session),
@@ -107,7 +110,11 @@ async def chat(
     conversation_id = conversation.id
 
     db.add(Message(conversation_id=conversation_id, role="user", content=payload.message))
-    await db.flush()
+    # Commit, do not merely flush. The generator below persists the assistant
+    # turn through its own session, and an uncommitted conversation row is
+    # invisible to it - which fails the messages -> conversations foreign key
+    # after the answer has already streamed.
+    await db.commit()
 
     history = [
         {"role": m.role, "content": m.content}
@@ -229,6 +236,14 @@ async def chat(
         generation_latency.observe(time.perf_counter() - started)
 
         # ---------------------------------------------------------- validate
+        # Promote grounded prose references to real citations before judging
+        # the answer. Only sections actually retrieved are eligible, so this
+        # cannot invent support -- it recognises support the model expressed in
+        # the wrong notation.
+        answer, upgraded = upgrade_bare_citations(answer, statute)
+        if upgraded:
+            logger.info("upgraded bare references", count=upgraded)
+
         # A statutory claim must be cited. Reading the user's own upload back to
         # them is not a statutory claim, so a document-only answer is not forced
         # to produce a section reference it has no business inventing.

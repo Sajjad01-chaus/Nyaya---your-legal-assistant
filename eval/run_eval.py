@@ -38,7 +38,7 @@ os.environ.setdefault("POSTGRES_PORT", "55432")
 os.environ.setdefault("QDRANT_URL", "http://localhost:6333")
 
 from app.core.config import settings  # noqa: E402
-from app.llm.guards import verify_answer  # noqa: E402
+from app.llm.guards import upgrade_bare_citations, verify_answer  # noqa: E402
 from app.llm.prompts import build_prompt  # noqa: E402
 from app.llm.provider import RateLimited, build_provider  # noqa: E402
 from app.retrieval.embeddings import Embedder, EmbedderConfig, Reranker  # noqa: E402
@@ -78,6 +78,7 @@ class Outcome:
     answer: str = ""
     cited: list[str] = field(default_factory=list)
     citations_valid: bool = True
+    generation_failed: bool = False
     cost_usd: float = 0.0
 
     def rank_of_first_hit(self) -> int | None:
@@ -209,12 +210,18 @@ async def evaluate(
             outcome.generation_ms = round((time.perf_counter() - gen_started) * 1000, 1)
             outcome.answer = outcome.answer or "".join(pieces)
 
+            # A provider quota exhaustion is not a citation defect. Counting
+            # it as one made the metric measure the free tier rather than the
+            # system.
+            outcome.generation_failed = outcome.answer.startswith("[generation failed")
+
+            outcome.answer, _ = upgrade_bare_citations(outcome.answer, statute)
             report = verify_answer(outcome.answer, statute)
             outcome.cited = [c.render() for c in report.valid]
             # Citation accuracy: every cited section must be in the retrieved
             # context AND relevant, which for a graded set means it appears in
             # the expected list when one exists.
-            outcome.citations_valid = not report.invented and (
+            outcome.citations_valid = not outcome.generation_failed and not report.invented and (
                 not outcome.expected
                 or any(
                     f"{c.act} s.{c.section}" in outcome.expected for c in report.valid
@@ -257,7 +264,7 @@ def summarise(name: str, outcomes: list[Outcome]) -> dict:
 
     retrieval = [o.retrieval_ms for o in outcomes]
     generation = [o.generation_ms for o in outcomes if o.generation_ms]
-    generated = [o for o in answerable if o.answer]
+    generated = [o for o in answerable if o.answer and not o.generation_failed]
 
     def percentile(values: list[float], q: float) -> float:
         if not values:
@@ -275,6 +282,7 @@ def summarise(name: str, outcomes: list[Outcome]) -> dict:
         "mrr": round(sum(reciprocal) / len(reciprocal), 3) if reciprocal else 0.0,
         "refusal_rate_out_of_scope": pct([0.0 if o.answered else 1.0 for o in refusable]),
         "false_refusal_rate": pct([0.0 if o.answered else 1.0 for o in answerable]),
+        "generation_failures": sum(1 for o in answerable if o.generation_failed),
         "citation_accuracy": pct([1.0 if o.citations_valid else 0.0 for o in generated])
         if generated
         else None,

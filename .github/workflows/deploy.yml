@@ -1,0 +1,63 @@
+name: Deploy (Optional)
+
+# This workflow demonstrates deployment to Render + Vercel.
+# Uncomment the on: trigger and add secrets to enable.
+
+on:
+  # push:
+  #   branches: [main]
+  # pull_request:
+  #   types: [opened, synchronize]
+
+jobs:
+  deploy-backend-render:
+    name: Deploy Backend to Render (Optional)
+    runs-on: ubuntu-latest
+    # if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      # Example: Trigger a Render deploy via webhook
+      # See: https://render.com/docs/deploy-hooks
+      - name: Trigger Render deployment
+        # if: secrets.RENDER_DEPLOY_HOOK_URL != ''
+        run: |
+          echo "Render deployment hook would trigger here"
+          echo "Set RENDER_DEPLOY_HOOK_URL secret to enable"
+          # curl -X POST ${{ secrets.RENDER_DEPLOY_HOOK_URL }}
+
+  deploy-frontend-vercel:
+    name: Deploy Frontend to Vercel (Optional)
+    runs-on: ubuntu-latest
+    # if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # Example: Deploy to Vercel
+      # See: https://vercel.com/docs/deployments/deploy-button-and-cli
+      - name: Deploy to Vercel
+        # if: secrets.VERCEL_TOKEN != ''
+        run: |
+          echo "Vercel deployment would happen here"
+          echo "Set VERCEL_TOKEN and VERCEL_PROJECT_ID secrets to enable"
+          # npm install -g vercel
+          # vercel deploy --token ${{ secrets.VERCEL_TOKEN }} --prod
+
+  # Optional: Smoke test after deployment
+  smoke-test:
+    name: Smoke Test
+    runs-on: ubuntu-latest
+    # needs: [deploy-backend-render, deploy-frontend-vercel]
+    # if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+
+    steps:
+      - name: Check API health
+        # if: secrets.DEPLOY_URL != ''
+        run: |
+          echo "Smoke test would run here"
+          echo "Set DEPLOY_URL secret to enable"
+          # curl -f http://${{ secrets.DEPLOY_URL }}/api/v1/health || exit 1

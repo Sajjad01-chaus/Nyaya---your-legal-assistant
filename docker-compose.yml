@@ -101,6 +101,16 @@ services:
       postgres: {condition: service_healthy}
       redis: {condition: service_healthy}
       qdrant: {condition: service_healthy}
+    # The image's own HEALTHCHECK curls the API port, which this role never
+    # opens - it runs arq, not uvicorn - so it must be overridden or the worker
+    # reports unhealthy forever. arq refreshes this Redis key every 30s.
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import sys, redis; from app.core.config import settings; sys.exit(0 if redis.Redis.from_url(settings.redis_url).exists('arq:queue:health-check') else 1)\""]
+      interval: 30s
+      timeout: 10s
+      # First boot downloads the embedding and BM25 models, which takes minutes.
+      start_period: 300s
+      retries: 3
     restart: unless-stopped
     networks: [nyaya]
 

@@ -21,6 +21,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import current_session, get_store
 from app.core.config import settings
+from app.main import limiter
 from app.core.logging import get_logger
 from app.core.metrics import uploads
 from app.core.security import is_encrypted_pdf, validate_upload
@@ -75,6 +76,7 @@ async def _owned(db: AsyncSession, document_id: str, session_id: str) -> Documen
 
 
 @router.post("/documents/upload", response_model=UploadResponse, status_code=202)
+@limiter.limit(settings.rate_limit_upload)
 async def upload_document(
     file: UploadFile = File(...),
     session_id: str = Depends(current_session),

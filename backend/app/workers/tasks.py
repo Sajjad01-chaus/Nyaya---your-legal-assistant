@@ -206,3 +206,7 @@ class WorkerSettings:
     max_jobs = 2               # embedding is CPU-bound; more would just thrash
     job_timeout = 900
     keep_result = 3600
+    # arq's default is an hour, which is useless as a liveness signal: the key
+    # outlives a dead worker by that long. 30s makes the compose healthcheck
+    # (which asserts the key exists) mean something.
+    health_check_interval = 30
