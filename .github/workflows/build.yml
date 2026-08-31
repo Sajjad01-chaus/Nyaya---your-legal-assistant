@@ -36,11 +36,26 @@ jobs:
           context: backend
           file: backend/Dockerfile
           push: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
+          load: ${{ github.event_name != 'push' || github.ref != 'refs/heads/main' }}
           tags: |
             ghcr.io/${{ github.repository }}/nyaya-api:latest
             ghcr.io/${{ github.repository }}/nyaya-api:${{ github.sha }}
+            localhost:5000/nyaya-api:${{ github.sha }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+      - name: Scan backend image with Trivy
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: localhost:5000/nyaya-api:${{ github.sha }}
+          format: sarif
+          output: backend-trivy-results.sarif
+
+      - name: Upload backend scan results
+        uses: github/codeql-action/upload-sarif@v2
+        with:
+          sarif_file: backend-trivy-results.sarif
+          category: trivy-backend
 
   build-frontend:
     name: Build Frontend
@@ -102,10 +117,25 @@ jobs:
           context: frontend
           file: frontend/Dockerfile
           push: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
+          load: ${{ github.event_name != 'push' || github.ref != 'refs/heads/main' }}
           tags: |
             ghcr.io/${{ github.repository }}/nyaya-frontend:latest
             ghcr.io/${{ github.repository }}/nyaya-frontend:${{ github.sha }}
+            localhost:5000/nyaya-frontend:${{ github.sha }}
           build-args: |
             NEXT_PUBLIC_API_BASE_URL=http://localhost:8000
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+      - name: Scan frontend image with Trivy
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: localhost:5000/nyaya-frontend:${{ github.sha }}
+          format: sarif
+          output: frontend-trivy-results.sarif
+
+      - name: Upload frontend scan results
+        uses: github/codeql-action/upload-sarif@v2
+        with:
+          sarif_file: frontend-trivy-results.sarif
+          category: trivy-frontend

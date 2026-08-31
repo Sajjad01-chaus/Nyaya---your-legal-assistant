@@ -61,3 +61,25 @@ jobs:
           echo "Smoke test would run here"
           echo "Set DEPLOY_URL secret to enable"
           # curl -f http://${{ secrets.DEPLOY_URL }}/api/v1/health || exit 1
+
+  # Rollback strategy documentation
+  # To rollback to a previous deployment:
+  #
+  # Backend (Render):
+  #   1. Go to Render dashboard → Select the backend service
+  #   2. Click "Deployments" tab
+  #   3. Find the previous successful deployment
+  #   4. Click "Redeploy" on that version
+  #   5. Wait ~2-3 minutes for health checks
+  #
+  # Frontend (Vercel):
+  #   1. Go to Vercel dashboard → Select the frontend project
+  #   2. Click "Deployments"
+  #   3. Find the previous successful deployment
+  #   4. Click "..." → "Rollback to this"
+  #   5. Instant rollback (~10 seconds)
+  #
+  # Database rollback (if needed):
+  #   - Postgres backups: restore from automated snapshots (if configured)
+  #   - Qdrant vector DB: volume snapshots via backup script
+  #   - See README for backup procedures

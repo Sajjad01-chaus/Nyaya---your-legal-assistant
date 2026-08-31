@@ -91,9 +91,19 @@ export default function SearchPage() {
         </label>
       </div>
 
-      {err && <div className="err">{err}</div>}
+      {err && (
+        <div className="err" style={{ padding: 12, marginBottom: 14, borderRadius: 8, border: "1px solid var(--low)" }}>
+          <strong>Search failed:</strong> {err}
+        </div>
+      )}
 
-      {res && (
+      {busy && (
+        <div className="empty" style={{ animation: "pulse 2s infinite" }}>
+          Searching...
+        </div>
+      )}
+
+      {!busy && res && (
         <>
           <div className="card" style={{ marginBottom: 18 }}>
             <div className="row small" style={{ gap: 10, flexWrap: "wrap" }}>

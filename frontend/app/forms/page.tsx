@@ -105,12 +105,19 @@ export default function FormsPage() {
         </a>
       </div>
 
-      {err && <div className="err">{err}</div>}
+      {err && (
+        <div className="err" style={{ padding: 12, marginBottom: 14, borderRadius: 8, border: "1px solid var(--low)" }}>
+          <strong>Error loading forms:</strong> {err}
+        </div>
+      )}
 
       {!data ? (
-        <div className="empty">Loading...</div>
+        <div className="empty" style={{ animation: "pulse 2s infinite" }}>
+          <div style={{ marginBottom: 12 }}>Loading forms...</div>
+          <div style={{ fontSize: 12 }} className="muted">This may take a moment on first load.</div>
+        </div>
       ) : forms.length === 0 ? (
-        <div className="empty">No forms matched.</div>
+        <div className="empty">No forms matched your search.</div>
       ) : (
         <div className="grid">
           {forms.map((f) => <FormCard key={f.form_number} f={f} onOpen={setOpen} />)}

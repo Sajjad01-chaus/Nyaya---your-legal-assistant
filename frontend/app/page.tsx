@@ -154,8 +154,36 @@ export default function ChatPage() {
 
       {turns.length === 0 && (
         <div className="empty">
-          Ask about the BNSS 2023. Answers cite the sections they rest on, and
-          the assistant refuses rather than guess when retrieval is weak.
+          <div style={{ marginBottom: 24 }}>
+            Ask about the BNSS 2023. Answers cite the sections they rest on, and
+            the assistant refuses rather than guess when retrieval is weak.
+          </div>
+          <div style={{ display: "grid", gap: 10, gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))" }}>
+            {[
+              "What is the punishment for rape under section 63?",
+              "What is culpable homicide not amounting to murder?",
+              "What is the procedure for arrest without warrant?",
+              "What constitutes criminal intimidation under the BNSS?"
+            ].map((question) => (
+              <button
+                key={question}
+                onClick={() => {
+                  setDraft(question);
+                  setTimeout(() => document.querySelector("textarea")?.focus(), 0);
+                }}
+                style={{
+                  padding: 12,
+                  textAlign: "left",
+                  fontSize: 13,
+                  lineHeight: 1.4,
+                  cursor: "pointer"
+                }}
+                title="Click to ask this question"
+              >
+                {question}
+              </button>
+            ))}
+          </div>
         </div>
       )}
 
@@ -188,7 +216,21 @@ export default function ChatPage() {
                 !t.error && <div className="muted small">Retrieving...</div>
               )}
 
-              {t.error && <div className="err">{t.error}</div>}
+              {t.error && (
+                <div className="err" style={{ marginTop: 8 }}>
+                  <strong>Error:</strong> {t.error}
+                  {t.error.includes("Retrieval") && (
+                    <div style={{ fontSize: 12, marginTop: 4 }} className="muted">
+                      The statute index may still be starting up. Try again in a moment.
+                    </div>
+                  )}
+                  {t.error.includes("language model") && (
+                    <div style={{ fontSize: 12, marginTop: 4 }} className="muted">
+                      The LLM provider is temporarily unavailable. Check your API key or try again shortly.
+                    </div>
+                  )}
+                </div>
+              )}
 
               {t.validation && (t.validation.stripped?.length ?? 0) > 0 && (
                 <div className="small" style={{ marginTop: 8 }}>

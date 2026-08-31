@@ -125,5 +125,10 @@ th { font-size: 12px; text-transform: uppercase; letter-spacing: 0.05em; color: 
 .bar { height: 5px; background: var(--border); border-radius: 99px; overflow: hidden; }
 .bar > i { display: block; height: 100%; background: var(--accent); transition: width 0.3s; }
 
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.6; }
+}
+
 .err { color: var(--low); font-size: 13.5px; }
 .empty { color: var(--muted); padding: 40px 0; text-align: center; }

@@ -147,7 +147,26 @@ export default function DocumentsPage() {
         {busy && <div className="small muted" style={{ marginTop: 8 }}>Uploading...</div>}
       </div>
 
-      {err && <div className="err" style={{ marginBottom: 14 }}>{err}</div>}
+      {err && (
+        <div className="err" style={{ marginBottom: 14, padding: 12, borderRadius: 8, border: "1px solid var(--low)" }}>
+          <strong>Upload failed:</strong> {err}
+          {err.includes("25 MB") && (
+            <div style={{ fontSize: 12, marginTop: 6 }} className="muted">
+              Max file size is 25 MB. Split large files or try again.
+            </div>
+          )}
+          {err.includes("type") && (
+            <div style={{ fontSize: 12, marginTop: 6 }} className="muted">
+              Supported types: PDF, PNG, JPEG, TXT
+            </div>
+          )}
+          {err.includes("password") && (
+            <div style={{ fontSize: 12, marginTop: 6 }} className="muted">
+              Remove the PDF password and try again.
+            </div>
+          )}
+        </div>
+      )}
 
       {docs.length === 0 ? (
         <div className="empty">No documents yet.</div>
