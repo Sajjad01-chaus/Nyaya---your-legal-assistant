@@ -71,10 +71,13 @@ def _sigmoid(x: float) -> float:
     return 1.0 / (1.0 + math.exp(-x))
 
 
-# A cross-encoder truncates at 512 tokens, so a long section is cut off well
-# before its distinguishing detail. Trimming here keeps the pair short enough to
-# score quickly and makes the truncation point predictable.
-_RERANK_CHARS = 900
+# Roughly the cross-encoder's own 512-token window, in characters. Trimming
+# harder than the model requires is actively harmful: at 900 chars the eval
+# produced three false refusals where retrieval had already found the right
+# section. "Can a woman be arrested after sunset?" scored 0.026 against s.43,
+# whose answer sits at sub-section (5) -- past the cut, so the scorer never saw
+# it. The chunker caps sections near this length anyway, so most pass whole.
+_RERANK_CHARS = 1800
 
 
 def _rerank_view(chunk) -> str:  # noqa: ANN001

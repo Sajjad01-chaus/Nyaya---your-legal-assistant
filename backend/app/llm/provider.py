@@ -21,6 +21,9 @@ import httpx
 
 logger = logging.getLogger(__name__)
 
+# Fallback pause when a provider rate-limits without a Retry-After header.
+_RETRY_SECONDS = 20.0
+
 
 @dataclass(slots=True)
 class Usage:
@@ -102,6 +105,17 @@ class OpenAICompatibleProvider(LLMProvider):
                 headers=self._headers(),
                 json=payload,
             ) as response:
+                if response.status_code == 429:
+                    # Free tiers rate-limit aggressively, and the evaluation
+                    # harness runs dozens of questions back to back. Honour the
+                    # provider's own Retry-After rather than guessing.
+                    retry_after = response.headers.get("retry-after")
+                    delay = float(retry_after) if retry_after else _RETRY_SECONDS
+                    body = (await response.aread()).decode("utf-8", "replace")[:200]
+                    raise RateLimited(
+                        f"{self.name} rate limited; retry in {delay:.0f}s: {body}",
+                        retry_after=delay,
+                    )
                 if response.status_code >= 400:
                     body = (await response.aread()).decode("utf-8", "replace")[:400]
                     raise LLMError(f"{self.name} returned {response.status_code}: {body}")
@@ -257,6 +271,14 @@ class GeminiProvider(LLMProvider):
 
 class LLMError(RuntimeError):
     """Surfaced to the caller as a useful error state, never as a fake answer."""
+
+
+class RateLimited(LLMError):
+    """Distinguishable from a real failure, because it is worth retrying."""
+
+    def __init__(self, message: str, *, retry_after: float) -> None:
+        super().__init__(message)
+        self.retry_after = retry_after
 
 
 def build_provider(settings) -> LLMProvider:  # noqa: ANN001 - avoids a circular import

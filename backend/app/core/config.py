@@ -70,12 +70,16 @@ class Settings(BaseSettings):
     embed_passage_prefix: str = Field("", alias="NYAYA_EMBED_PASSAGE_PREFIX")
     rerank_model: str = Field("Xenova/ms-marco-MiniLM-L-6-v2", alias="NYAYA_RERANK_MODEL")
     rerank_enabled: bool = Field(True, alias="NYAYA_RERANK_ENABLED")
-    rerank_top_k: int = Field(30, alias="NYAYA_RERANK_TOP_K")
+    rerank_top_k: int = Field(12, alias="NYAYA_RERANK_TOP_K")
     rerank_keep: int = Field(6, alias="NYAYA_RERANK_KEEP")
 
     # ---- retrieval thresholds ----
-    confidence_high: float = Field(0.55, alias="NYAYA_CONFIDENCE_HIGH")
-    confidence_low: float = Field(0.30, alias="NYAYA_CONFIDENCE_LOW")
+    # Calibrated against eval/golden_set.jsonl rather than guessed. On that
+    # set the 7 out-of-scope questions score 0.000-0.009 while the weakest
+    # true positive scores 0.157, so the boundary sits in a wide empty gap.
+    # Anything below 0.70 is answered but flagged as uncertain.
+    confidence_high: float = Field(0.70, alias="NYAYA_CONFIDENCE_HIGH")
+    confidence_low: float = Field(0.05, alias="NYAYA_CONFIDENCE_LOW")
     rrf_k: int = Field(60, alias="NYAYA_RRF_K")
     hybrid_candidates: int = Field(50, alias="NYAYA_HYBRID_CANDIDATES")
 
