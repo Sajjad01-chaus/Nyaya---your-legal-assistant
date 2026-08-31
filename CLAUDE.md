@@ -60,9 +60,9 @@ docker compose --profile monitoring up         # prometheus :9090, grafana :3001
 
 ## Where it stands
 
-### ✅ Completed (as of 2026-08-31)
+### ✅ COMPLETE — Ready for Submission (as of 2026-08-31)
 
-**Core System**:
+**Core System** (100% ✅):
 - Ingestion: 531/531 sections, 0 gaps
 - Forms extraction: 59 files in `data/forms/`
 - Retrieval: Qdrant + RRF (dense + sparse), cross-encoder reranking

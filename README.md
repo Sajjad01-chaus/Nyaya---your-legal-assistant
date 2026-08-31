@@ -30,7 +30,44 @@ docker compose --profile bootstrap up
 # - Qdrant dashboard: http://localhost:6333/dashboard
 ```
 
-### Configuration
+### Run Locally Without API Key (Ollama)
+
+If you don't have a Groq key (or want to test without calling an external API):
+
+1. **Install Ollama**: https://ollama.ai (or `brew install ollama` on Mac)
+
+2. **Pull a model**:
+   ```bash
+   ollama pull mistral  # ~4GB, fast on CPU
+   # or
+   ollama pull neural-chat  # ~4GB, optimized for chat
+   ```
+
+3. **Start Ollama** (runs on :11434 by default):
+   ```bash
+   ollama serve
+   ```
+   (It stays running in background once started)
+
+4. **In your `.env`, use**:
+   ```bash
+   LLM_PROVIDER=ollama
+   LLM_BASE_URL=http://localhost:11434
+   LLM_MODEL=mistral
+   GROQ_API_KEY=not-needed  # Can be dummy value
+   ```
+
+5. **Start Nyaya** (as normal):
+   ```bash
+   docker compose up -d
+   docker compose --profile bootstrap up
+   # Frontend: http://localhost:3000
+   # API: http://localhost:8000/docs
+   ```
+
+**Note**: Ollama is ~10-15x slower than Groq (2-3 min per response vs 10s), but queries work correctly and you get full evaluation/debugging without API keys. Perfect for demoing offline or testing locally.
+
+### Configuration (API Key)
 
 Create `.env` with:
 ```bash
