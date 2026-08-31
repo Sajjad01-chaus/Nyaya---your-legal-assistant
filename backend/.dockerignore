@@ -1,0 +1,48 @@
+# Keep the build context small and keep secrets and corpora out of the image.
+.git
+.github
+.gitignore
+.gitattributes
+
+# secrets - must never enter an image layer
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# the source PDF and everything generated from it: fetched by bootstrap,
+# mounted as a volume, never baked in
+../data
+data/
+*.pdf
+!tests/fixtures/*.pdf
+
+# python cruft
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+coverage.xml
+htmlcov/
+*.egg-info/
+
+# model weights live on a named volume
+.cache/
+models/
+.fastembed_cache/
+*.onnx
+
+# node, in case of a stray copy
+node_modules/
+.next/
+
+# editor / os
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
