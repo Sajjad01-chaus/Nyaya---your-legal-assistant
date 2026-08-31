@@ -71,6 +71,27 @@ def _sigmoid(x: float) -> float:
     return 1.0 / (1.0 + math.exp(-x))
 
 
+# A cross-encoder truncates at 512 tokens, so a long section is cut off well
+# before its distinguishing detail. Trimming here keeps the pair short enough to
+# score quickly and makes the truncation point predictable.
+_RERANK_CHARS = 900
+
+
+def _rerank_view(chunk) -> str:  # noqa: ANN001
+    """What the cross-encoder actually scores.
+
+    The breadcrumb must be included. Chunks are *embedded* as breadcrumb + body,
+    so dense search can match a section by its title -- but reranking the bare
+    body throws that signal away, and the cross-encoder then never sees that
+    s.35 is titled "When police may arrest without warrant". Measured on this
+    corpus, that single omission dropped s.35 out of the top 3 for the query
+    "when can a police officer arrest someone without a warrant".
+    """
+    breadcrumb = str(chunk.payload.get("breadcrumb", "")).strip()
+    body = chunk.text[:_RERANK_CHARS]
+    return f"{breadcrumb}\n{body}" if breadcrumb else body
+
+
 # Filler that adds no retrieval signal; dropped when rewriting a weak query.
 _STOPWORDS = re.compile(
     r"\b(please|kindly|can you|could you|tell me|i want to know|explain|"
@@ -299,7 +320,9 @@ class RetrievalService:
 
         started = time.perf_counter()
         ranked = self.reranker.rerank(
-            question, [c.text for c in candidates], keep=self.rerank_keep
+            question,
+            [_rerank_view(c) for c in candidates],
+            keep=self.rerank_keep,
         )
         timings["rerank"] = round((time.perf_counter() - started) * 1000, 1)
 
