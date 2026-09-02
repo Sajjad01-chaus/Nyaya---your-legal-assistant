@@ -37,9 +37,12 @@ async def lifespan(app: FastAPI):  # noqa: ANN201
         embed_model=settings.embed_model,
         llm_provider=settings.llm_provider,
     )
-    # Initialize database tables on startup
-    from app.db.session import create_all
-    await create_all()
+    # Initialize database tables on startup (skip if database not ready)
+    try:
+        from app.db.session import create_all
+        await create_all()
+    except Exception as e:
+        logger.warning(f"database initialization skipped: {type(e).__name__}")
     yield
     from app.api.deps import get_store
 

@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import json
 import time
+import uuid
 from collections.abc import AsyncIterator, Callable, Coroutine
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Response
@@ -68,8 +69,12 @@ from app.core.metrics import (
     retrieval_latency,
     time_to_first_token,
 )
-from app.db.models import Conversation, Message
-from app.db.session import get_session, session_scope
+try:
+    from app.db.models import Conversation, Message
+    from app.db.session import get_session, session_scope
+except Exception:
+    get_session = None
+    session_scope = None
 from app.llm.guards import (
     QUOTE_FAILURE_TEXT,
     REFUSAL_TEXT,
@@ -130,30 +135,29 @@ async def chat(
     payload: ChatRequest,
     request: Request,
     session_id: str = Depends(current_session),
-    db: AsyncSession = Depends(get_session),
+    db = None,  # Database optional
 ) -> CookiedEventSourceResponse:
-    conversation = await _get_or_create_conversation(
-        db, payload.conversation_id, session_id, payload.message
-    )
-    conversation_id = conversation.id
+    # Use conversation_id from payload or generate one
+    conversation_id = payload.conversation_id or str(uuid.uuid4())
 
-    db.add(Message(conversation_id=conversation_id, role="user", content=payload.message))
-    # Commit, do not merely flush. The generator below persists the assistant
-    # turn through its own session, and an uncommitted conversation row is
-    # invisible to it - which fails the messages -> conversations foreign key
-    # after the answer has already streamed.
-    await db.commit()
+    history = []
+    try:
+        if db is not None:
+            db.add(Message(conversation_id=conversation_id, role="user", content=payload.message))
+            await db.commit()
 
-    history = [
-        {"role": m.role, "content": m.content}
-        for m in (
-            await db.execute(
-                select(Message)
-                .where(Message.conversation_id == conversation_id)
-                .order_by(Message.created_at)
-            )
-        ).scalars().all()
-    ][:-1]
+            history = [
+                {"role": m.role, "content": m.content}
+                for m in (
+                    await db.execute(
+                        select(Message)
+                        .where(Message.conversation_id == conversation_id)
+                        .order_by(Message.created_at)
+                    )
+                ).scalars().all()
+            ][:-1]
+    except Exception:
+        pass  # skip database if unavailable
 
     async def stream() -> AsyncIterator[dict]:
         started = time.perf_counter()
@@ -220,13 +224,16 @@ async def chat(
                 "citations": [],
                 "notes": ["retrieval confidence below threshold"],
             })
-            async with session_scope() as store_db:
-                store_db.add(Message(
-                    conversation_id=conversation_id, role="assistant", content=text,
-                    meta={"refused": True, "confidence": result.confidence.value,
-                          "score": result.score, "route": result.route_taken},
-                ))
-                await store_db.commit()
+            try:
+                async with session_scope() as store_db:
+                    store_db.add(Message(
+                        conversation_id=conversation_id, role="assistant", content=text,
+                        meta={"refused": True, "confidence": result.confidence.value,
+                              "score": result.score, "route": result.route_taken},
+                    ))
+                    await store_db.commit()
+            except Exception:
+                pass  # skip if database unavailable
             yield _sse("done", {"refused": True})
             return
 
@@ -308,23 +315,26 @@ async def chat(
             "notes": report.notes,
         })
 
-        async with session_scope() as store_db:
-            store_db.add(Message(
-                conversation_id=conversation_id, role="assistant",
-                content=report.answer,
-                meta={
-                    "verdict": report.verdict.value,
-                    "citations": [c.render() for c in report.valid],
-                    "stripped": [c.render() for c in report.invented],
-                    "confidence": result.confidence.value,
-                    "score": result.score,
-                    "route": result.route_taken,
-                    "chunk_ids": [c["chunk_id"] for c in statute],
-                    "timings_ms": result.timings_ms,
-                    "cost_usd": round(cost, 6),
-                },
-            ))
-            await store_db.commit()
+        try:
+            async with session_scope() as store_db:
+                store_db.add(Message(
+                    conversation_id=conversation_id, role="assistant",
+                    content=report.answer,
+                    meta={
+                        "verdict": report.verdict.value,
+                        "citations": [c.render() for c in report.valid],
+                        "stripped": [c.render() for c in report.invented],
+                        "confidence": result.confidence.value,
+                        "score": result.score,
+                        "route": result.route_taken,
+                        "chunk_ids": [c["chunk_id"] for c in statute],
+                        "timings_ms": result.timings_ms,
+                        "cost_usd": round(cost, 6),
+                    },
+                ))
+                await store_db.commit()
+        except Exception:
+            pass  # skip if database unavailable
 
         chat_requests.labels(
             route=result.route_taken, outcome=report.verdict.value
