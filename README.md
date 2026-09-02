@@ -411,4 +411,4 @@ See `.github/workflows/deploy.yml` for automated rollback procedures.
 
 ## Contact
 
-Sajjad Chaus — claude7583@outlook.com
+Sajjad Chaus — chaussajjad@gmail.com

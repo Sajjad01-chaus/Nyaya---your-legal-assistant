@@ -56,6 +56,7 @@ class Settings(BaseSettings):
     # ---- vector store ----
     vector_store: Literal["qdrant", "pgvector"] = Field("qdrant", alias="NYAYA_VECTOR_STORE")
     qdrant_url: str = Field("http://qdrant:6333", alias="QDRANT_URL")
+    qdrant_api_key: str = Field("", alias="QDRANT_API_KEY")
     qdrant_collection_statute: str = Field(
         "nyaya_statute", alias="QDRANT_COLLECTION_STATUTE"
     )

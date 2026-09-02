@@ -109,11 +109,11 @@ class QdrantStore:
         "session_id",
     )
 
-    def __init__(self, url: str, *, timeout: float = 30.0) -> None:
+    def __init__(self, url: str, api_key: str = "", *, timeout: float = 30.0) -> None:
         from qdrant_client import AsyncQdrantClient
 
         self.url = url
-        self.client = AsyncQdrantClient(url=url, timeout=timeout)
+        self.client = AsyncQdrantClient(url=url, api_key=api_key or None, timeout=timeout)
 
     async def ensure_collection(self, name: str, dim: int) -> None:
         from qdrant_client import models

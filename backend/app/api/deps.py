@@ -43,7 +43,7 @@ def get_reranker() -> Reranker:
 
 @lru_cache(maxsize=1)
 def get_store() -> QdrantStore:
-    return QdrantStore(settings.qdrant_url)
+    return QdrantStore(settings.qdrant_url, settings.qdrant_api_key)
 
 
 @lru_cache(maxsize=1)
