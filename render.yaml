@@ -14,11 +14,13 @@
         value: BAAI/bge-base-en-v1.5
       - key: NYAYA_EMBED_DIM
         value: "768"
-      - key: NYAYA_QDRANT_URL
+      - key: QDRANT_URL
         sync: false
-      - key: NYAYA_POSTGRES_HOST
+      - key: QDRANT_API_KEY
         sync: false
-      - key: NYAYA_POSTGRES_PORT
+      - key: POSTGRES_HOST
+        sync: false
+      - key: POSTGRES_PORT
         value: "5432"
       - key: NYAYA_RERANK_ENABLED
         value: "false"
