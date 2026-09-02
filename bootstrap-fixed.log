@@ -1,9 +1,0 @@
- Container nyaya-postgres-1 Running 
- Container nyaya-qdrant-1 Running 
-Attaching to bootstrap-1
- Container nyaya-qdrant-1 Waiting 
- Container nyaya-postgres-1 Waiting 
- Container nyaya-qdrant-1 Healthy 
- Container nyaya-postgres-1 Healthy 
- Container nyaya-bootstrap-1 Starting 
-Error response from daemon: failed to set up container networking: network 51b5ecad24a9f5dfac9a9f814fb4fa7c4fcb67f9b4abb3dd90838ce7f40602cd not found
