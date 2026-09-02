@@ -15,12 +15,21 @@ from __future__ import annotations
 import argparse
 import asyncio
 import hashlib
+import os
 import sys
 import time
 from pathlib import Path
 
 BACKEND = Path(__file__).resolve().parents[1] / "backend"
 sys.path.insert(0, str(BACKEND))
+
+# Set env vars BEFORE importing config to ensure they're picked up
+if not os.getenv("DATABASE_URL"):
+    os.environ.setdefault("DATABASE_URL", "postgresql://nyaya_legal_assistant_db_user:Y9LsEPiKefUlQf8LofQQPnhLfyXpUnxc@dpg-dabv87u7bikc73ed1jg0-a/nyaya_legal_assistant_db")
+if not os.getenv("QDRANT_URL"):
+    os.environ.setdefault("QDRANT_URL", "https://e7bb7e7d-2b96-42c8-9ade-a2d3427c2b87.us-east-1-1.aws.cloud.qdrant.io")
+if not os.getenv("QDRANT_API_KEY"):
+    os.environ.setdefault("QDRANT_API_KEY", "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJhY2Nlc3MiOiJtIiwic3ViamVjdCI6ImFwaS1rZXk6YTljOTM5ZDYtOGI0OC00ODFhLTgxNjktMDI4YzhiOWQyMGE1In0.8XZdAElkoRpTS3b0xIYcamjkyZBtD9I4udNXsOgCNMU")
 
 from sqlalchemy import select  # noqa: E402
 
@@ -54,19 +63,23 @@ def _progress(stage: str, fraction: float) -> None:
 async def ingest_statute(pdf: Path, *, force: bool) -> None:
     digest = hashlib.sha256(pdf.read_bytes()).hexdigest()
 
-    async with session_scope() as db:
-        existing = await db.scalar(
-            select(IngestedAct).where(IngestedAct.act_short == ACT_SHORT)
-        )
-        if (
-            existing
-            and existing.source_sha256 == digest
-            and existing.embed_model == settings.embed_model
-            and not force
-        ):
-            print(f"  statute already indexed ({existing.chunk_count} chunks) - skipping")
-            print("  re-run with --force to rebuild")
-            return
+    # Try to check database, but skip if unavailable
+    try:
+        async with session_scope() as db:
+            existing = await db.scalar(
+                select(IngestedAct).where(IngestedAct.act_short == ACT_SHORT)
+            )
+            if (
+                existing
+                and existing.source_sha256 == digest
+                and existing.embed_model == settings.embed_model
+                and not force
+            ):
+                print(f"  statute already indexed ({existing.chunk_count} chunks) - skipping")
+                print("  re-run with --force to rebuild")
+                return
+    except Exception as e:
+        print(f"  note: database check skipped ({type(e).__name__}); proceeding with indexing")
 
     print(f"\n> Parsing {pdf.name}")
     started = time.perf_counter()
@@ -105,7 +118,7 @@ async def ingest_statute(pdf: Path, *, force: bool) -> None:
             passage_prefix=settings.embed_passage_prefix,
         )
     )
-    store = QdrantStore(settings.qdrant_url)
+    store = QdrantStore(settings.qdrant_url, settings.qdrant_api_key)
     indexed = await index_chunks(
         chunks,
         store=store,
@@ -115,19 +128,22 @@ async def ingest_statute(pdf: Path, *, force: bool) -> None:
     )
     print()
 
-    async with session_scope() as db:
-        row = await db.scalar(
-            select(IngestedAct).where(IngestedAct.act_short == ACT_SHORT)
-        )
-        if row is None:
-            row = IngestedAct(act_short=ACT_SHORT)
-            db.add(row)
-        row.act = ACT
-        row.source_sha256 = digest
-        row.section_count = report.section_count
-        row.chunk_count = indexed
-        row.embed_model = settings.embed_model
-        row.parse_report = report.to_dict()
+    try:
+        async with session_scope() as db:
+            row = await db.scalar(
+                select(IngestedAct).where(IngestedAct.act_short == ACT_SHORT)
+            )
+            if row is None:
+                row = IngestedAct(act_short=ACT_SHORT)
+                db.add(row)
+            row.act = ACT
+            row.source_sha256 = digest
+            row.section_count = report.section_count
+            row.chunk_count = indexed
+            row.embed_model = settings.embed_model
+            row.parse_report = report.to_dict()
+    except Exception as e:
+        print(f"  warning: database save failed ({type(e).__name__}); Qdrant vectors still indexed")
 
     await store.close()
     print(f"  indexed {indexed} chunks in {time.perf_counter() - started:.0f}s")
@@ -200,19 +216,26 @@ async def main() -> int:
     print(f"  postgres : {settings.postgres_host}:{settings.postgres_port}")
     print("=" * 68)
 
-    await create_all()
-    print("  schema ensured")
+    try:
+        await create_all()
+        print("  schema ensured")
+    except Exception as e:
+        print(f"  warning: database schema sync failed ({type(e).__name__})")
+        print("  proceeding with Qdrant ingestion anyway...")
 
     if not args.skip_statute:
         await ingest_statute(pdf, force=args.force)
     if not args.skip_forms:
         await ingest_forms(pdf, Path(args.forms_dir))
 
-    async with session_scope() as db:
-        offences = await db.scalar(select(OffenceClassification).limit(1))
-    if offences is None:
-        print("\n  note: the First Schedule offence table is not yet populated;")
-        print("  offence questions fall back to semantic retrieval.")
+    try:
+        async with session_scope() as db:
+            offences = await db.scalar(select(OffenceClassification).limit(1))
+        if offences is None:
+            print("\n  note: the First Schedule offence table is not yet populated;")
+            print("  offence questions fall back to semantic retrieval.")
+    except Exception as e:
+        print(f"\n  note: could not check offence table ({type(e).__name__})")
 
     print("\nBootstrap complete.")
     return 0
