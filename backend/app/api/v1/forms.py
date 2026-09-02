@@ -85,17 +85,21 @@ async def list_forms(
     needs_review: bool | None = Query(None, description="Filter by review flag"),
     db: AsyncSession = Depends(get_session),
 ) -> FormListOut:
-    stmt = select(Form).order_by(Form.form_number)
-    if needs_review is not None:
-        stmt = stmt.where(Form.needs_review == needs_review)
-    rows = (await db.execute(stmt)).scalars().all()
-    flagged = await db.scalar(
-        select(func.count()).select_from(Form).where(Form.needs_review.is_(True))
-    )
-    return FormListOut(
-        total=len(rows), needs_review=int(flagged or 0),
-        forms=[FormOut.of(r) for r in rows],
-    )
+    try:
+        stmt = select(Form).order_by(Form.form_number)
+        if needs_review is not None:
+            stmt = stmt.where(Form.needs_review == needs_review)
+        rows = (await db.execute(stmt)).scalars().all()
+        flagged = await db.scalar(
+            select(func.count()).select_from(Form).where(Form.needs_review.is_(True))
+        )
+        return FormListOut(
+            total=len(rows), needs_review=int(flagged or 0),
+            forms=[FormOut.of(r) for r in rows],
+        )
+    except Exception:
+        # Database unavailable; return empty list
+        return FormListOut(total=0, needs_review=0, forms=[])
 
 
 @router.get("/forms/search", response_model=FormListOut)

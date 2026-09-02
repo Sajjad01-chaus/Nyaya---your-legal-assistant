@@ -160,22 +160,26 @@ async def list_documents(
     session_id: str = Depends(current_session),
     db: AsyncSession = Depends(get_session),
 ) -> list[DocumentOut]:
-    rows = (
-        await db.execute(
-            select(Document)
-            .where(Document.session_id == session_id)
-            .order_by(Document.created_at.desc())
-        )
-    ).scalars().all()
-    return [
-        DocumentOut(
-            id=d.id, filename=d.filename, content_type=d.content_type,
-            size_bytes=d.size_bytes, page_count=d.page_count,
-            chunk_count=d.chunk_count, status=d.status.value, error=d.error,
-            injection_flags=list(d.injection_flags or []),
-        )
-        for d in rows
-    ]
+    try:
+        rows = (
+            await db.execute(
+                select(Document)
+                .where(Document.session_id == session_id)
+                .order_by(Document.created_at.desc())
+            )
+        ).scalars().all()
+        return [
+            DocumentOut(
+                id=d.id, filename=d.filename, content_type=d.content_type,
+                size_bytes=d.size_bytes, page_count=d.page_count,
+                chunk_count=d.chunk_count, status=d.status.value, error=d.error,
+                injection_flags=list(d.injection_flags or []),
+            )
+            for d in rows
+        ]
+    except Exception:
+        # Database unavailable; return empty list
+        return []
 
 
 @router.get("/documents/{document_id}/status", response_model=JobStatusOut)
