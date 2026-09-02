@@ -38,12 +38,8 @@ async def lifespan(app: FastAPI):  # noqa: ANN201
         llm_provider=settings.llm_provider,
     )
     # Initialize database tables on startup
-    from sqlalchemy import event
-    from app.db.models import Base
-    from app.db.session import async_engine
-    async with async_engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
-    logger.info("database tables initialized")
+    from app.db.session import create_all
+    await create_all()
     yield
     from app.api.deps import get_store
 
