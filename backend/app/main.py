@@ -40,6 +40,13 @@ async def lifespan(app: FastAPI):  # noqa: ANN201
     # Initialize database tables on startup
     from app.db.session import create_all
     await create_all()
+    # Ingest PDF if not already done
+    try:
+        from app.ingestion.pipeline import ingest_statute
+        await ingest_statute()
+        logger.info("statute ingestion complete")
+    except Exception as e:
+        logger.warning(f"statute ingestion skipped: {e}")
     yield
     from app.api.deps import get_store
 
