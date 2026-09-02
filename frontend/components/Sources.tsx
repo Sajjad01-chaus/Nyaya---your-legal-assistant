@@ -7,12 +7,17 @@ export default function Sources({
   sources,
   documentSources,
   highlighted,
+  confidence,
 }: {
   sources: Source[];
   documentSources: DocumentSource[];
   highlighted?: string | null;
+  confidence?: string;
 }) {
   const [copiedId, setCopiedId] = useState<string | null>(null);
+
+  // Hide passages if confidence is low (refusing to answer)
+  if (confidence === "low") return null;
 
   if (sources.length === 0 && documentSources.length === 0) return null;
 

@@ -241,6 +241,7 @@ export default function ChatPage() {
                 sources={t.meta?.sources ?? []}
                 documentSources={(t.meta?.document_sources ?? []) as DocumentSource[]}
                 highlighted={highlight}
+                confidence={t.meta?.confidence}
               />
 
               {t.done && !busy && (

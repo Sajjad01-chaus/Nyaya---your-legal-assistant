@@ -1,0 +1,41 @@
+﻿services:
+  - type: web
+    name: nyaya-api
+    runtime: docker
+    buildCommand: docker build -f backend/Dockerfile -t nyaya-api:latest .
+    startCommand: uvicorn backend.app.main:app --host 0.0.0.0 --port 8000
+    healthCheckPath: /health
+    env:
+      - key: NYAYA_LLM_MODEL
+        value: openai/gpt-oss-120b
+      - key: NYAYA_LLM_TEMPERATURE
+        value: "0.3"
+      - key: NYAYA_EMBED_MODEL
+        value: BAAI/bge-base-en-v1.5
+      - key: NYAYA_EMBED_DIM
+        value: "768"
+      - key: NYAYA_QDRANT_URL
+        sync: false
+      - key: NYAYA_POSTGRES_HOST
+        sync: false
+      - key: NYAYA_POSTGRES_PORT
+        value: "5432"
+      - key: NYAYA_RERANK_ENABLED
+        value: "false"
+      - key: NYAYA_CONFIDENCE_HIGH
+        value: "0.55"
+      - key: NYAYA_CONFIDENCE_LOW
+        value: "0.30"
+    scaling:
+      minInstances: 1
+      maxInstances: 3
+
+  - type: pserv
+    name: postgres
+    ipAllowList: []
+    plan: free
+
+  - type: pserv
+    name: redis
+    ipAllowList: []
+    plan: free

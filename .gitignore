@@ -1,50 +1,92 @@
-# ---- secrets: never commit ----
+﻿# Environment & Secrets
 .env
-.env.*
-!.env.example
-*.pem
+.env.local
+.env.*.local
 *.key
+*.pem
+credentials.json
 secrets/
 
-# ---- source corpus + generated artefacts (fetched/built by scripts) ----
-data/raw/*
-!data/raw/.gitkeep
-data/forms/*
-!data/forms/.gitkeep
-data/processed/*
-!data/processed/.gitkeep
-eval/results/*
-!eval/results/.gitkeep
+# API Keys & Tokens
+NYAYA_*
+groq_api_key
+openai_api_key
+anthropic_api_key
 
-# ---- model weights / caches ----
-.cache/
-models/
-.fastembed_cache/
-*.onnx
-
-# ---- python ----
+# Python
 __pycache__/
 *.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
 *.egg-info/
-.venv/
-venv/
+.installed.cfg
+*.egg
+MANIFEST
+pip-log.txt
+pip-delete-this-directory.txt
 .pytest_cache/
-.mypy_cache/
-.ruff_cache/
 .coverage
-coverage.xml
 htmlcov/
+venv/
+env/
+.venv
 
-# ---- node / next ----
+# Node
 node_modules/
+npm-debug.log
+yarn-error.log
 .next/
 out/
-.vercel/
-*.tsbuildinfo
+dist/
 
-# ---- os / editor ----
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Data (sensitive or large)
+data/raw/*.pdf
+data/forms/
+data/uploads/
+*.sqlite
+*.db
+
+# Docker
+.dockerignore
+docker-compose.override.yml
+
+# Logs
+*.log
+logs/
+*.pid
+
+# Temporary
+*.tmp
+*.temp
+*.bak
+.tmp/
+GITHUB_READY.txt
+
+# Build & Eval artifacts
+eval/results/
+eval/*.json
+
+# OS
 .DS_Store
 Thumbs.db
-.idea/
-.vscode/
-*.swp

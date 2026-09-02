@@ -363,18 +363,17 @@ class RetrievalService:
         evidence, and a cross-encoder score measures topical similarity rather
         than entitlement to answer.
 
-        Gating documents on the statutory threshold refused questions the
-        system could obviously answer: on the end-to-end run a one-chunk notice
-        scored below the floor and "What does this notice require me to do?"
-        was declined against the very document the user had just uploaded.
+        For documents: lower the thresholds since user is asking about their
+        own uploaded content. If user asks about "my notice", finding the notice
+        is meaningful even if score is below statutory threshold.
         """
-        if not statute:
-            return Confidence.HIGH if score > 0.0 else Confidence.LOW
-        if score >= self.confidence_high:
+        # Documents use lower thresholds than statute (user explicitly chose the source)
+        high_threshold = 0.30 if not statute else self.confidence_high
+        low_threshold = 0.10 if not statute else self.confidence_low
+
+        if score >= high_threshold:
             return Confidence.HIGH
-        # If retrieval found ANY results (score > 0), at minimum give MODERATE confidence
-        # to answer. Only refuse if NO retrieval results or score is completely absent.
-        if score > 0.0 or score >= self.confidence_low:
+        if score >= low_threshold:
             return Confidence.MODERATE
         return Confidence.LOW
 

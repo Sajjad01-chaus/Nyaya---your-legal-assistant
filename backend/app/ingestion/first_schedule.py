@@ -1,47 +1,20 @@
-"""Extract the First Schedule (Classification of Offences) from BNSS PDF.
-
-Pages 158-189 contain a 6-column table:
-  1. Section number (BNS)
-  2. Section title / offence
-  3. Punishment
-  4. Cognizable/Non-cognizable
-  5. Bailable/Non-bailable
-  6. Trial court
-
-This is where crime definitions and punishments live. Parse it into indexable chunks.
-"""
+"""Extract the First Schedule (Classification of Offences) from BNSS PDF."""
 
 from __future__ import annotations
 
 import pdfplumber
 import re
-from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Sequence
 
 from .statute import Chunk
 
 
-@dataclass(slots=True)
-class OffenceRow:
-    """One row from the First Schedule offence table."""
-    section: str
-    title: str
-    punishment: str
-    cognizable: str
-    bail: str
-    court: str
-
-
 def extract_first_schedule(pdf_path: Path | str, page_start: int = 158, page_end: int = 189) -> list[Chunk]:
-    """Extract First Schedule with offense-boundary chunking for legal documents.
-
-    Each offense entry becomes its own chunk instead of 50-line fixed chunks.
-    Pattern: Section number at line start (e.g., "64(1)", "65", "70(2)") marks new offense.
-    """
+    """Extract First Schedule text table by section markers (e.g., 49, 50, 65(2), 70(1))."""
     chunks = []
     ingested_at = datetime.now(timezone.utc).isoformat()
+    chunk_num = 0
 
     with pdfplumber.open(pdf_path) as pdf:
         full_text = []
@@ -55,25 +28,24 @@ def extract_first_schedule(pdf_path: Path | str, page_start: int = 158, page_end
 
         combined = "\n".join(full_text)
         lines = combined.split("\n")
-
         current_chunk = []
-        chunk_num = 0
 
         for line in lines:
             stripped = line.strip()
+            # Section marker: digit(s) optionally (subsection) then space
+            # Examples: "49 ", "65(2) ", "70(1) "
+            is_section_start = re.match(r'^\d{1,3}(\([a-z0-9]+\))?\s', stripped)
 
-            # Check if line starts an offense: digit(s) at start, optionally with subsection like (1) or (2)
-            if re.match(r'^\d+(\([0-9a-z]{1,3}\))?[\s]', stripped) and current_chunk:
-                # Save previous chunk
+            if is_section_start and current_chunk:
                 chunk_text = "\n".join(current_chunk).strip()
-                if len(chunk_text) > 30:  # Minimum chunk size
+                if len(chunk_text) > 20:
                     chunks.append(Chunk(
                         act="Bharatiya Nagarik Suraksha Sanhita, 2023",
                         act_short="BNSS",
                         chapter=None,
                         chapter_title=None,
                         section_number="First Schedule",
-                        section_title="Classification of Offences - Offence Schedule",
+                        section_title="Classification of Offences",
                         subsection=None,
                         clause=None,
                         text=chunk_text,
@@ -82,26 +54,25 @@ def extract_first_schedule(pdf_path: Path | str, page_start: int = 158, page_end
                         has_exception=False,
                         page_start=page_start,
                         page_end=page_end,
-                        chunk_id=f"bnss-schedule-offense-{chunk_num}",
+                        chunk_id=f"bnss-schedule-{chunk_num}",
                         source_uri="",
                         ingested_at=ingested_at,
                     ))
                     chunk_num += 1
                 current_chunk = [line]
-            else:
+            elif stripped:
                 current_chunk.append(line)
 
-        # Save final chunk
         if current_chunk:
             chunk_text = "\n".join(current_chunk).strip()
-            if len(chunk_text) > 30:
+            if len(chunk_text) > 20:
                 chunks.append(Chunk(
                     act="Bharatiya Nagarik Suraksha Sanhita, 2023",
                     act_short="BNSS",
                     chapter=None,
                     chapter_title=None,
                     section_number="First Schedule",
-                    section_title="Classification of Offences - Offence Schedule",
+                    section_title="Classification of Offences",
                     subsection=None,
                     clause=None,
                     text=chunk_text,
@@ -110,7 +81,7 @@ def extract_first_schedule(pdf_path: Path | str, page_start: int = 158, page_end
                     has_exception=False,
                     page_start=page_start,
                     page_end=page_end,
-                    chunk_id=f"bnss-schedule-offense-{chunk_num}",
+                    chunk_id=f"bnss-schedule-{chunk_num}",
                     source_uri="",
                     ingested_at=ingested_at,
                 ))

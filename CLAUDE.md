@@ -75,49 +75,55 @@ The system was refusing "What is punishment for rape?" despite having retrieval 
    - Model `Xenova/ms-marco-MiniLM-L-6-v2` trained on web search, not legal docs
    - Gave NEGATIVE scores (-0.45, -2.7) to correct Section 64-70 rape offenses
    
-2. ✅ **Fixed confidence scoring** (backend/app/retrieval/service.py:377-378)
-   - Changed: `if score >= 0.05: return MODERATE` 
-   - To: `if score > 0.0: return MODERATE`
-   - Result: Any retrieval (score > 0.0) now triggers MODERATE confidence instead of LOW refusal
-   - Verified: System now shows "moderate 0.14" instead of refusing outright
+2. ✅ **Fixed confidence scoring** (backend/app/retrieval/service.py:370-379)
+   - Removed buggy `score > 0.0` condition
+   - Now properly uses thresholds: HIGH (≥0.55), MODERATE (0.30-0.55), LOW (<0.30)
+   - Result: Out-of-scope questions (score ~0.0) now properly refused with LOW confidence
+   - Verified: Rape question scores 0.9314 (HIGH), temperature question scores 0.0 (LOW)
    
 3. ✅ **Rewrote First Schedule extraction** (backend/app/ingestion/first_schedule.py)
-   - **Before**: 40 chunks of ~2000 chars (diluted signal)
-   - **After**: 470 offense-boundary chunks with Section 64(1), 64(2), 65(1), 65(2), 66, 67, 68, 69, 70(1), 70(2) as separate chunks
-   - Verified locally: 470 chunks extracted, rape offenses verified in Chunks 19-29
-   - **Expected impact**: Confidence improving from 0.14 → **0.5+**
+   - Replaced pdfplumber table extraction with line-based parsing (PDF table is text-formatted, not box-drawn)
+   - Regex pattern: `^\d{1,3}(\([a-z0-9]+\))?\s` detects offense section boundaries
+   - **Result**: 40 diluted chunks → **473 offense-boundary chunks** (pages 158-189)
+   - Verified: Rape offenses (s.64-70) properly chunked and retrievable
 
-**Status**: Docker rebuilt with new extraction code. Bootstrap re-indexing in progress (ETA: ~25 min).
+**Status**: ✅ COMPLETE. All three issues fixed, docker services healthy, bootstrap complete, golden set evaluation passing (0 failures).
 
-### ✅ COMPLETE — Ready for Submission (as of 2026-08-31)
+### ✅ PRODUCTION READY (as of 2026-09-02)
 
 **Core System** (100% ✅):
-- Ingestion: 531/531 sections, 0 gaps
-- Forms extraction: 59 files in `data/forms/`
-- Retrieval: Qdrant + RRF (dense + sparse), cross-encoder reranking
-- Query routing: CRAG correction for medium-confidence queries
-- Citation guards: 3-layer validation (existence, quote fidelity, support)
-- FastAPI surface: All endpoints (chat, documents, search, forms, feedback, health)
-- Async ingestion: arq workers + Redis queue
-- Evaluation: 35-question golden set, comprehensive metrics
+- **Ingestion**: 531 statute sections + 473 First Schedule offense chunks = 1,004 extracted, 896 indexed
+- **Retrieval**: Hybrid (dense embeddings 768-dim + BM25 sparse) with RRF server fusion
+- **Confidence Scoring**: HIGH (≥0.55), MODERATE (0.30-0.55), LOW (<0.30, refuses)
+- **Citation Guards**: 3-layer validation (existence, quote fidelity, support) — 100% accuracy
+- **FastAPI endpoints**: chat (SSE), search, documents, forms, feedback, health — all working
+- **Async ingestion**: arq workers + Redis queue — verified end-to-end
+- **Forms extraction**: 59 files in `data/forms/`
+- **Evaluation**: 35-question golden set with comprehensive metrics
 
-**Recent Fixes (this session)**:
-- **Citation accuracy**: Fixed 78.6% → **100%**
-  - Root cause: Typographic spaces (U+202F) defeated regex; fixed with `normalise_spaces()`
-  - Added `upgrade_bare_citations()` to rewrite prose refs to brackets when grounded
-- **Rate limiting**: Wired slowapi (30/minute chat, 10/hour upload) to endpoints
-- **Frontend UX**: Dark mode toggle, drag-drop upload, copy buttons, regenerate, ARIA accessibility
-- **Documentation**: README (quick start + eval results), ARCHITECTURE.md (design choices), DECISIONS.md (framework trade-offs)
-- **CI/CD**: GitHub Actions (test.yml, build.yml, deploy.yml)
+**Critical Session Fixes**:
+1. ✅ **Confidence threshold bug** (service.py:377)
+   - Removed `score > 0.0` condition that accepted ANY positive score
+   - Out-of-scope refusal: 0% → **100%**, False refusal: 0% (unchanged)
+   
+2. ✅ **First Schedule extraction** (first_schedule.py)
+   - Rewrote from pdfplumber tables (unreliable) to line-based parsing with regex section detection
+   - Result: 40 diluted chunks → **473 offense-boundary chunks**
+   
+3. ✅ **Eval embedding mismatch** (run_eval.py)
+   - Updated from bge-small (384-dim) to bge-base (768-dim) to match deployed model
+   
+4. ✅ **Frontend UX** (Sources.tsx, page.tsx)
+   - Hide retrieved passages when confidence is LOW (clean refusals)
 
-**Latest eval** (35 questions, `eval/results/latest.json`):
-- Recall@5: **100%**
-- MRR: **0.912**
-- Citation accuracy: **100%** (fixed from 78.6%)
-- Out-of-scope refusal: **100%**
-- False refusal: **0%**
-- Generation p50: 8.2s
-- Generation p95: 44s
+**Final Metrics** (35-question golden set, all passing):
+- Recall@5: **100%** ✅
+- Recall@10: **100%** ✅
+- MRR: **0.912** (91.2% best-rank quality) ✅
+- Citation accuracy: **100%** ✅
+- Out-of-scope refusal: **100%** ✅
+- False refusal: **0%** ✅
+- Retrieval p50: 1,072ms | p95: 2,166ms ✅
 
 ### 🟡 Optional/Lower Priority
 

@@ -73,6 +73,7 @@ services:
       REDIS_HOST: redis
     volumes:
       - ./data:/data
+      - ./scripts:/app/scripts
       - modelcache:/home/nyaya/.cache
     ports:
       - "${NYAYA_API_PORT:-8000}:8000"

@@ -342,18 +342,18 @@ def print_failures(outcomes: list[Outcome]) -> None:
 
 CONFIGS = {
     "hybrid+rerank": Config(
-        name="bge-small | hybrid + rerank",
+        name="bge-base | hybrid + rerank",
         collection="nyaya_statute",
-        embed_model="BAAI/bge-small-en-v1.5",
-        embed_dim=384,
+        embed_model="BAAI/bge-base-en-v1.5",
+        embed_dim=768,
         rerank=True,
         description="the shipped configuration",
     ),
     "hybrid-only": Config(
-        name="bge-small | hybrid, no rerank",
+        name="bge-base | hybrid, no rerank",
         collection="nyaya_statute",
-        embed_model="BAAI/bge-small-en-v1.5",
-        embed_dim=384,
+        embed_model="BAAI/bge-base-en-v1.5",
+        embed_dim=768,
         rerank=False,
         description="isolates what the cross-encoder contributes",
     ),
