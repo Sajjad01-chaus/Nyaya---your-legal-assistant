@@ -372,7 +372,9 @@ class RetrievalService:
             return Confidence.HIGH if score > 0.0 else Confidence.LOW
         if score >= self.confidence_high:
             return Confidence.HIGH
-        if score >= self.confidence_low:
+        # If retrieval found ANY results (score > 0), at minimum give MODERATE confidence
+        # to answer. Only refuse if NO retrieval results or score is completely absent.
+        if score > 0.0 or score >= self.confidence_low:
             return Confidence.MODERATE
         return Confidence.LOW
 

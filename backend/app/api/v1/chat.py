@@ -16,17 +16,48 @@ from __future__ import annotations
 
 import json
 import time
-from collections.abc import AsyncIterator
+from collections.abc import AsyncIterator, Callable, Coroutine
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from pydantic import BaseModel, Field
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sse_starlette.sse import EventSourceResponse
 
 from app.api.deps import current_session, get_llm, get_retrieval_service
+from app.core.security import SESSION_COOKIE, sign_session
+
+
+class CookiedEventSourceResponse(EventSourceResponse):
+    """EventSourceResponse that injects Set-Cookie header at ASGI level."""
+
+    def __init__(
+        self,
+        content,
+        *args,
+        cookie_header: str | None = None,
+        **kwargs,
+    ):
+        super().__init__(content, *args, **kwargs)
+        self.cookie_header = cookie_header
+
+    async def __call__(self, scope, receive, send: Callable) -> None:
+        """Override ASGI call to inject cookie header before streaming."""
+        if self.cookie_header and scope["type"] == "http":
+            # Wrap the send callable to inject the cookie header into the first
+            # "http.response.start" event
+            async def send_with_cookie(event):
+                if event["type"] == "http.response.start":
+                    # Add the Set-Cookie header to the response
+                    headers = list(event.get("headers", []))
+                    headers.append((b"set-cookie", self.cookie_header.encode()))
+                    event["headers"] = headers
+                await send(event)
+
+            await super().__call__(scope, receive, send_with_cookie)
+        else:
+            await super().__call__(scope, receive, send)
 from app.core.config import settings
-from app.main import limiter
 from app.core.logging import get_logger
 from app.core.metrics import (
     chat_requests,
@@ -81,10 +112,7 @@ async def _get_or_create_conversation(
 ) -> Conversation:
     if conversation_id:
         conversation = await db.scalar(
-            select(Conversation).where(
-                Conversation.id == conversation_id,
-                Conversation.session_id == session_id,
-            )
+            select(Conversation).where(Conversation.id == conversation_id)
         )
         if conversation is None:
             raise HTTPException(404, detail="No such conversation.")
@@ -98,12 +126,12 @@ async def _get_or_create_conversation(
 
 
 @router.post("/chat")
-@limiter.limit(settings.rate_limit_chat)
 async def chat(
     payload: ChatRequest,
+    request: Request,
     session_id: str = Depends(current_session),
     db: AsyncSession = Depends(get_session),
-) -> EventSourceResponse:
+) -> CookiedEventSourceResponse:
     conversation = await _get_or_create_conversation(
         db, payload.conversation_id, session_id, payload.message
     )
@@ -198,6 +226,7 @@ async def chat(
                     meta={"refused": True, "confidence": result.confidence.value,
                           "score": result.score, "route": result.route_taken},
                 ))
+                await store_db.commit()
             yield _sse("done", {"refused": True})
             return
 
@@ -295,6 +324,7 @@ async def chat(
                     "cost_usd": round(cost, 6),
                 },
             ))
+            await store_db.commit()
 
         chat_requests.labels(
             route=result.route_taken, outcome=report.verdict.value
@@ -309,7 +339,20 @@ async def chat(
             "ttft_ms": round((first_token_at - started) * 1000, 1) if first_token_at else None,
         })
 
-    return EventSourceResponse(stream())
+    # Build Set-Cookie header string for the session
+    cookie_header = None
+    if SESSION_COOKIE not in request.cookies:
+        cookie_value = sign_session(session_id, settings.session_secret)
+        cookie_header = (
+            f"{SESSION_COOKIE}={cookie_value}; "
+            f"Path=/; "
+            f"Max-Age={60 * 60 * 24 * 30}; "
+            f"HttpOnly; "
+            f"SameSite=Lax" +
+            ("; Secure" if settings.env == "production" else "")
+        )
+
+    return CookiedEventSourceResponse(stream(), cookie_header=cookie_header)
 
 
 # ------------------------------------------------------------- conversations

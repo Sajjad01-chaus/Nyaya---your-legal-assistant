@@ -64,8 +64,8 @@ class Settings(BaseSettings):
     )
 
     # ---- embeddings / rerank ----
-    embed_model: str = Field("BAAI/bge-small-en-v1.5", alias="NYAYA_EMBED_MODEL")
-    embed_dim: int = Field(384, alias="NYAYA_EMBED_DIM")
+    embed_model: str = Field("BAAI/bge-base-en-v1.5", alias="NYAYA_EMBED_MODEL")
+    embed_dim: int = Field(768, alias="NYAYA_EMBED_DIM")
     embed_query_prefix: str = Field("", alias="NYAYA_EMBED_QUERY_PREFIX")
     embed_passage_prefix: str = Field("", alias="NYAYA_EMBED_PASSAGE_PREFIX")
     rerank_model: str = Field("Xenova/ms-marco-MiniLM-L-6-v2", alias="NYAYA_RERANK_MODEL")

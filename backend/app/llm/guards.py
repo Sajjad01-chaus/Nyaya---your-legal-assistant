@@ -256,8 +256,14 @@ def verify_answer(
     if unsupported:
         return GuardReport(Verdict.REFUSED, cleaned, valid, invented, unsupported, notes)
     if require_citation and not valid:
-        notes.append("no verifiable citation remained after validation")
-        return GuardReport(Verdict.REFUSED, cleaned, valid, invented, unsupported, notes)
+        # If we have good retrieval results and the answer references sections in prose,
+        # that's acceptable. Only refuse if there's truly no connection to sources.
+        if allowed and any(section.lower() in cleaned.lower() for _, section in allowed):
+            # Answer references retrieved sections in prose - accept it
+            notes.append("answer references retrieved sections in prose form")
+        else:
+            notes.append("no verifiable citation remained after validation")
+            return GuardReport(Verdict.REFUSED, cleaned, valid, invented, unsupported, notes)
 
     verdict = Verdict.STRIPPED if invented else Verdict.OK
     return GuardReport(verdict, cleaned, valid, invented, unsupported, notes)

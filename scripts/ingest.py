@@ -29,6 +29,7 @@ from app.core.logging import configure_logging, get_logger  # noqa: E402
 from app.db.models import Form, IngestedAct, OffenceClassification  # noqa: E402
 from app.db.session import create_all, session_scope  # noqa: E402
 from app.forms.extractor import extract_forms, write_manifest  # noqa: E402
+from app.ingestion.first_schedule import extract_first_schedule  # noqa: E402
 from app.ingestion.pipeline import index_chunks, parse_bare_act  # noqa: E402
 from app.retrieval.embeddings import Embedder, EmbedderConfig  # noqa: E402
 from app.retrieval.store import QdrantStore  # noqa: E402
@@ -76,9 +77,16 @@ async def ingest_statute(pdf: Path, *, force: bool) -> None:
         last_operative_page=LAST_OPERATIVE_PAGE,
         progress=_progress,
     )
+
+    # Extract First Schedule (Classification of Offences) from pages 158-189
+    print("\n> Extracting First Schedule (Classification of Offences)")
+    schedule_chunks = extract_first_schedule(pdf, page_start=158, page_end=189)
+    print(f"  extracted {len(schedule_chunks)} offence classification rows")
+    chunks.extend(schedule_chunks)
+
     print()
     print(f"  sections : {report.section_count}")
-    print(f"  chunks   : {report.chunk_count}")
+    print(f"  chunks   : {report.chunk_count + len(schedule_chunks)}")
     print(f"  pages    : {report.pages_text} text, {report.pages_ocr} ocr, "
           f"{report.pages_garbage} unusable text layer")
     for warning in report.warnings:

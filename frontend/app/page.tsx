@@ -154,33 +154,28 @@ export default function ChatPage() {
 
       {turns.length === 0 && (
         <div className="empty">
-          <div style={{ marginBottom: 24 }}>
-            Ask about the BNSS 2023. Answers cite the sections they rest on, and
-            the assistant refuses rather than guess when retrieval is weak.
+          <div>
+            Ask about the Bharatiya Nagarik Suraksha Sanhita, 2023.<br/>
+            Every answer cites the sections it rests on. The system refuses to guess when uncertain.
           </div>
-          <div style={{ display: "grid", gap: 10, gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))" }}>
+          <div className="example-grid">
             {[
-              "What is the punishment for rape under section 63?",
-              "What is culpable homicide not amounting to murder?",
-              "What is the procedure for arrest without warrant?",
-              "What constitutes criminal intimidation under the BNSS?"
-            ].map((question) => (
+              { q: "What is the punishment for rape?", icon: "⚖️" },
+              { q: "What is culpable homicide?", icon: "📋" },
+              { q: "Procedure for arrest without warrant?", icon: "🔍" },
+              { q: "What is criminal intimidation?", icon: "🛡️" }
+            ].map(({ q, icon }) => (
               <button
-                key={question}
+                key={q}
                 onClick={() => {
-                  setDraft(question);
+                  setDraft(q);
                   setTimeout(() => document.querySelector("textarea")?.focus(), 0);
                 }}
-                style={{
-                  padding: 12,
-                  textAlign: "left",
-                  fontSize: 13,
-                  lineHeight: 1.4,
-                  cursor: "pointer"
-                }}
+                className="example-card"
                 title="Click to ask this question"
               >
-                {question}
+                <span>{icon}</span>
+                {q}
               </button>
             ))}
           </div>

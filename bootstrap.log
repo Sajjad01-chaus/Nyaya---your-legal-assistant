@@ -1,0 +1,86 @@
+ Container nyaya-postgres-1 Running 
+ Container nyaya-qdrant-1 Running 
+ Container nyaya-bootstrap-1 Creating 
+ Container nyaya-bootstrap-1 Created 
+Attaching to bootstrap-1
+ Container nyaya-postgres-1 Waiting 
+ Container nyaya-qdrant-1 Waiting 
+ Container nyaya-qdrant-1 Healthy 
+ Container nyaya-postgres-1 Healthy 
+ Container nyaya-bootstrap-1 Starting 
+ Container nyaya-bootstrap-1 Started 
+bootstrap-1  | --> waiting for Qdrant at http://qdrant:6333
+bootstrap-1  |     Qdrant ready
+bootstrap-1  | --> indexing statute and extracting forms
+bootstrap-1  | ====================================================================
+bootstrap-1  |   Nyaya bootstrap
+bootstrap-1  |   source   : /data/raw/bnss_2023.pdf
+bootstrap-1  |   qdrant   : http://qdrant:6333
+bootstrap-1  |   postgres : postgres:5432
+bootstrap-1  | ====================================================================
+bootstrap-1  | schema ensured
+bootstrap-1  |   schema ensured
+bootstrap-1  | 
+bootstrap-1  | > Parsing bnss_2023.pdf
+bootstrap-1  |   [##                                      ]   5.0%  profiling     [########                                ]  20.0%  parsing     [2m2026-09-01T10:53:54.390031Z[0m [[32m[1minfo     [0m] [1mparsed bare act               [0m [36mact[0m=[35mBNSS[0m [36mchunks[0m=[35m577[0m [36mneeds_review[0m=[35mFalse[0m [36mrequest_id[0m=[35m-[0m [36mseconds[0m=[35m62.5[0m [36msections[0m=[35m531[0m
+bootstrap-1  |   [################                        ]  40.0%  parsed      
+bootstrap-1  |   sections : 531
+bootstrap-1  |   chunks   : 577
+bootstrap-1  |   pages    : 249 text, 0 ocr, 0 unusable text layer
+bootstrap-1  | 
+bootstrap-1  | > Embedding with BAAI/bge-base-en-v1.5 (768-dim)
+bootstrap-1  | HTTP Request: GET http://qdrant:6333/collections/nyaya_statute/exists "HTTP/1.1 200 OK"
+bootstrap-1  | HTTP Request: GET http://qdrant:6333 "HTTP/1.1 200 OK"
+bootstrap-1  | /opt/venv/lib/python3.12/site-packages/qdrant_client/async_qdrant_remote.py:225: UserWarning: Qdrant client version 1.19.0 is incompatible with server version 1.12.5. Major versions should match and minor version difference must not exceed 1. Set check_compatibility=False to skip version check.
+bootstrap-1  |   show_warning(
+bootstrap-1  | loaded dense embedder
+bootstrap-1  | embedded passages
+bootstrap-1  | HTTP Request: PUT http://qdrant:6333/collections/nyaya_statute/points?wait=true "HTTP/1.1 200 OK"
+bootstrap-1  |   [##################                      ]  46.7%  embedding   [2m2026-09-01T10:56:49.170870Z[0m [[32m[1minfo     [0m] [1mindexed batch                 [0m [36mcollection[0m=[35mnyaya_statute[0m [36mdone[0m=[35m64[0m [36melapsed_s[0m=[35m159.6[0m [36mof[0m=[35m577[0m [36mrequest_id[0m=[35m-[0m
+bootstrap-1  | embedded passages
+bootstrap-1  | HTTP Request: PUT http://qdrant:6333/collections/nyaya_statute/points?wait=true "HTTP/1.1 200 OK"
+bootstrap-1  |   [#####################                   ]  53.3%  embedding   [2m2026-09-01T10:59:24.628170Z[0m [[32m[1minfo     [0m] [1mindexed batch                 [0m [36mcollection[0m=[35mnyaya_statute[0m [36mdone[0m=[35m128[0m [36melapsed_s[0m=[35m301.7[0m [36mof[0m=[35m577[0m [36mrequest_id[0m=[35m-[0m
+[Knyaya-bootstrap-run-081164514bf5 exited with code 0
+bootstrap-1                       | embedded passages
+bootstrap-1                       | HTTP Request: PUT http://qdrant:6333/collections/nyaya_statute/points?wait=true "HTTP/1.1 200 OK"
+bootstrap-1                       |   [#######################                 ]  60.0%  embedding   [2m2026-09-01T11:01:55.215772Z[0m [[32m[1minfo     [0m] [1mindexed batch                 [0m [36mcollection[0m=[35mnyaya_statute[0m [36mdone[0m=[35m192[0m [36melapsed_s[0m=[35m445.5[0m [36mof[0m=[35m577[0m [36mrequest_id[0m=[35m-[0m
+bootstrap-1                       | embedded passages
+bootstrap-1                       | HTTP Request: PUT http://qdrant:6333/collections/nyaya_statute/points?wait=true "HTTP/1.1 200 OK"
+bootstrap-1                       |   [##########################              ]  66.6%  embedding   [2m2026-09-01T11:04:10.672998Z[0m [[32m[1minfo     [0m] [1mindexed batch                 [0m [36mcollection[0m=[35mnyaya_statute[0m [36mdone[0m=[35m256[0m [36melapsed_s[0m=[35m575.1[0m [36mof[0m=[35m577[0m [36mrequest_id[0m=[35m-[0m
+bootstrap-1                       | embedded passages
+bootstrap-1                       | HTTP Request: PUT http://qdrant:6333/collections/nyaya_statute/points?wait=true "HTTP/1.1 200 OK"
+bootstrap-1                       |   [#############################           ]  73.3%  embedding   [2m2026-09-01T11:06:18.149422Z[0m [[32m[1minfo     [0m] [1mindexed batch                 [0m [36mcollection[0m=[35mnyaya_statute[0m [36mdone[0m=[35m320[0m [36melapsed_s[0m=[35m693.0[0m [36mof[0m=[35m577[0m [36mrequest_id[0m=[35m-[0m
+bootstrap-1                       | embedded passages
+bootstrap-1                       | HTTP Request: PUT http://qdrant:6333/collections/nyaya_statute/points?wait=true "HTTP/1.1 200 OK"
+bootstrap-1                       |   [###############################         ]  79.9%  embedding   [2m2026-09-01T11:08:19.110413Z[0m [[32m[1minfo     [0m] [1mindexed batch                 [0m [36mcollection[0m=[35mnyaya_statute[0m [36mdone[0m=[35m384[0m [36melapsed_s[0m=[35m803.5[0m [36mof[0m=[35m577[0m [36mrequest_id[0m=[35m-[0m
+bootstrap-1                       | embedded passages
+bootstrap-1                       | HTTP Request: PUT http://qdrant:6333/collections/nyaya_statute/points?wait=true "HTTP/1.1 200 OK"
+bootstrap-1                       |   [##################################      ]  86.6%  embedding   [2m2026-09-01T11:10:27.966351Z[0m [[32m[1minfo     [0m] [1mindexed batch                 [0m [36mcollection[0m=[35mnyaya_statute[0m [36mdone[0m=[35m448[0m [36melapsed_s[0m=[35m924.0[0m [36mof[0m=[35m577[0m [36mrequest_id[0m=[35m-[0m
+bootstrap-1                       | embedded passages
+bootstrap-1                       | HTTP Request: PUT http://qdrant:6333/collections/nyaya_statute/points?wait=true "HTTP/1.1 200 OK"
+bootstrap-1                       |   [#####################################   ]  93.2%  embedding   [2m2026-09-01T11:12:37.002291Z[0m [[32m[1minfo     [0m] [1mindexed batch                 [0m [36mcollection[0m=[35mnyaya_statute[0m [36mdone[0m=[35m512[0m [36melapsed_s[0m=[35m1042.6[0m [36mof[0m=[35m577[0m [36mrequest_id[0m=[35m-[0m
+bootstrap-1                       | embedded passages
+bootstrap-1                       | HTTP Request: PUT http://qdrant:6333/collections/nyaya_statute/points?wait=true "HTTP/1.1 200 OK"
+bootstrap-1                       |   [####################################### ]  99.9%  embedding   [2m2026-09-01T11:14:37.209726Z[0m [[32m[1minfo     [0m] [1mindexed batch                 [0m [36mcollection[0m=[35mnyaya_statute[0m [36mdone[0m=[35m576[0m [36melapsed_s[0m=[35m1154.6[0m [36mof[0m=[35m577[0m [36mrequest_id[0m=[35m-[0m
+bootstrap-1                       | embedded passages
+bootstrap-1                       | HTTP Request: PUT http://qdrant:6333/collections/nyaya_statute/points?wait=true "HTTP/1.1 200 OK"
+bootstrap-1                       |   [########################################] 100.0%  embedding   
+bootstrap-1                       | [2m2026-09-01T11:14:39.346266Z[0m [[32m[1minfo     [0m] [1mindexed batch                 [0m [36mcollection[0m=[35mnyaya_statute[0m [36mdone[0m=[35m577[0m [36melapsed_s[0m=[35m1156.7[0m [36mof[0m=[35m577[0m [36mrequest_id[0m=[35m-[0m
+bootstrap-1                       | [2m2026-09-01T11:14:39.346449Z[0m [[32m[1minfo     [0m] [1mindexing complete             [0m [36mchunks[0m=[35m577[0m [36mcollection[0m=[35mnyaya_statute[0m [36mper_second[0m=[35m0.5[0m [36mrequest_id[0m=[35m-[0m [36mseconds[0m=[35m1156.7[0m
+bootstrap-1                       | 
+bootstrap-1                       |   indexed 577 chunks in 1222s
+bootstrap-1                       | 
+bootstrap-1                       | > Extracting forms from pages 190-249
+bootstrap-1                       |   forms        : 58
+bootstrap-1                       |   multi-page   : [(33, 3)]
+bootstrap-1                       |   needs_review : 2
+bootstrap-1                       |      Form 18: title is shared with another form; number disambiguates
+bootstrap-1                       |      Form 48: title is shared with another form; number disambiguates
+bootstrap-1                       |   manifest     : /data/forms/forms_manifest.json
+bootstrap-1                       |   58 rows upserted into postgres
+bootstrap-1                       | 
+bootstrap-1                       |   note: the First Schedule offence table is not yet populated;
+bootstrap-1                       |   offence questions fall back to semantic retrieval.
+bootstrap-1                       | 
+bootstrap-1                       | Bootstrap complete.
+[Kbootstrap-1 exited with code 0

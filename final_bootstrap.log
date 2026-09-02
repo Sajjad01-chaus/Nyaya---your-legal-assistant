@@ -1,0 +1,21 @@
+ Network nyaya_nyaya Creating 
+ Network nyaya_nyaya Created 
+ Volume nyaya_pgdata Creating 
+ Volume nyaya_pgdata Created 
+ Volume nyaya_qdrantdata Creating 
+ Volume nyaya_qdrantdata Created 
+ Container nyaya-postgres-1 Creating 
+ Container nyaya-qdrant-1 Creating 
+ Container nyaya-qdrant-1 Created 
+ Container nyaya-postgres-1 Created 
+Attaching to bootstrap-1
+ Container nyaya-postgres-1 Starting 
+ Container nyaya-qdrant-1 Starting 
+ Container nyaya-postgres-1 Started 
+ Container nyaya-qdrant-1 Started 
+ Container nyaya-postgres-1 Waiting 
+ Container nyaya-qdrant-1 Waiting 
+ Container nyaya-postgres-1 Healthy 
+ Container nyaya-qdrant-1 Healthy 
+ Container nyaya-bootstrap-1 Starting 
+Error response from daemon: failed to set up container networking: network 51b5ecad24a9f5dfac9a9f814fb4fa7c4fcb67f9b4abb3dd90838ce7f40602cd not found

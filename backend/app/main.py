@@ -15,7 +15,6 @@ from slowapi.errors import RateLimitExceeded
 from slowapi.util import get_remote_address
 from starlette.responses import Response
 
-from app.api.v1 import chat, documents, feedback, forms, health, search
 from app.core.config import settings
 from app.core.logging import configure_logging, get_logger, request_id_var
 from app.core.metrics import chat_requests
@@ -24,6 +23,9 @@ configure_logging(settings.log_level, json_logs=settings.env == "production")
 logger = get_logger()
 
 limiter = Limiter(key_func=get_remote_address)
+
+# Import routes AFTER limiter is created to avoid circular imports
+from app.api.v1 import chat, documents, feedback, forms, health, search
 
 
 @asynccontextmanager
