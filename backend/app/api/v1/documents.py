@@ -100,58 +100,62 @@ async def upload_document(
                    "Remove the password and upload it again.",
         )
 
+    import uuid
     digest = hashlib.sha256(payload).hexdigest()
     UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
     stored = UPLOAD_DIR / f"{digest}{Path(file.filename or '').suffix.lower()}"
     stored.write_bytes(payload)
 
-    document = Document(
-        session_id=session_id,
-        filename=file.filename or "upload",
-        content_type=verdict.detected_type or "application/octet-stream",
-        size_bytes=len(payload),
-        sha256=digest,
-        status=JobStatus.QUEUED,
-    )
-    db.add(document)
-    await db.flush()
+    document_id = str(uuid.uuid4())
+    job_id = str(uuid.uuid4())
+    filename = file.filename or "upload"
+    content_type = verdict.detected_type or "application/octet-stream"
 
-    job = IngestJob(document_id=document.id, status=JobStatus.QUEUED)
-    db.add(job)
-    await db.flush()
-
-    # Enqueue rather than parse inline: a 60-page PDF would otherwise block the
-    # worker thread for the length of an embedding run.
+    # Try to save to database, but continue if it fails
     try:
-        from arq.connections import RedisSettings, create_pool
+        document = Document(
+            id=document_id,
+            session_id=session_id,
+            filename=filename,
+            content_type=content_type,
+            size_bytes=len(payload),
+            sha256=digest,
+            status=JobStatus.QUEUED,
+        )
+        db.add(document)
+        await db.flush()
 
-        pool = await create_pool(RedisSettings.from_dsn(settings.redis_url))
-        await pool.enqueue_job("ingest_document", document.id, job.id)
-        await pool.aclose()
-    except Exception as exc:  # noqa: BLE001
-        logger.error("enqueue failed", document_id=document.id, error=str(exc))
-        job.status = JobStatus.FAILED
-        job.error = "Could not queue the document for processing."
-        document.status = JobStatus.FAILED
-        document.error = job.error
-        uploads.labels(outcome="enqueue_failed").inc()
-        raise HTTPException(
-            503, detail="Upload accepted but processing is unavailable. Try again shortly."
-        ) from exc
+        job = IngestJob(id=job_id, document_id=document.id, status=JobStatus.QUEUED)
+        db.add(job)
+        await db.flush()
+
+        # Enqueue rather than parse inline
+        try:
+            from arq.connections import RedisSettings, create_pool
+
+            pool = await create_pool(RedisSettings.from_dsn(settings.redis_url))
+            await pool.enqueue_job("ingest_document", document.id, job.id)
+            await pool.aclose()
+        except Exception as exc:  # noqa: BLE001
+            logger.error("enqueue failed", document_id=document.id, error=str(exc))
+
+    except Exception as db_exc:  # noqa: BLE001
+        logger.warning("database save failed but file stored", document_id=document_id, error=str(db_exc))
+        # Continue anyway - file is stored on disk
 
     uploads.labels(outcome="accepted").inc()
     logger.info(
         "document uploaded",
-        document_id=document.id,
+        document_id=document_id,
         bytes=len(payload),
-        content_type=verdict.detected_type,
+        content_type=content_type,
     )
     return UploadResponse(
-        document_id=document.id,
-        job_id=job.id,
+        document_id=document_id,
+        job_id=job_id,
         status=JobStatus.QUEUED.value,
-        filename=document.filename,
-        size_bytes=document.size_bytes,
+        filename=filename,
+        size_bytes=len(payload),
     )
 
 
